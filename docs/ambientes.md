@@ -1,15 +1,19 @@
 # Ambientes e publicação
 
-Preparação para Vercel; os ambientes hospedados ainda precisam ser provisionados e validados.
+Configuração em 18/09/2026: os dois projetos Vercel e bancos Neon gratuitos foram provisionados em São Paulo. Migração inicial e proprietário aplicados em ambos. Autenticação hospedada ainda depende de configurar Resend, verificar domínio e validar staging; não está liberada para uso.
 
 | Recurso | Staging | Produção |
 |---|---|---|
-| Projeto Vercel proposto | rotina-staging | rotina-prod |
+| Projeto Vercel | rotina-staging | rotina |
 | Branch de publicação | staging | main |
 | APP_ENV | staging | production |
 | Banco PostgreSQL | Projeto independente, dados fictícios | Projeto independente, dados reais |
 | AUTH_SECRET | Exclusivo de staging | Exclusivo de produção |
 | E-mail | Chave própria, destinatários permitidos | Chave própria, domínio verificado |
+
+URLs reservadas: `https://rotina-staging.vercel.app` e `https://rotina-eight-phi.vercel.app`. A existência do domínio não indica implantação operacional. O remetente escolhido é `acesso@rotina.angelosds.com`. O usuário escolheu conta gratuita diretamente no Resend, pois o plano gratuito foi recusado pelo Marketplace.
+
+Os bancos foram conectados apenas ao ambiente Production do respectivo projeto Vercel. Previews automáticos estão desabilitados. O Ignored Build Step está temporariamente em `exit 0` nos dois projetos para impedir publicação automática antes da configuração e validação completas. Remover essa suspensão primeiro em staging, validá-lo e só depois liberar produção.
 
 Os dois projetos usam Next.js, raiz `apps/web`, Node.js 24 e acesso aos pacotes do monorepo fora da raiz. Instalação com lockfile congelado. Configure APP_URL com a URL estável de cada ambiente. A classificação Production do projeto Vercel de staging **não** muda APP_ENV=staging.
 

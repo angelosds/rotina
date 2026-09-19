@@ -1,14 +1,14 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { readConfig } from "@rotina/config";
+import { readDatabaseConfig } from "@rotina/config";
 import { createDatabase, sql } from "@rotina/db";
 try {
   process.loadEnvFile("apps/web/.env.local");
 } catch {
   /* Hosted pipeline supplies environment directly. */
 }
-const c = readConfig();
+const c = readDatabaseConfig();
 if (process.env.MIGRATE_ENV !== c.APP_ENV)
   throw Error("Set MIGRATE_ENV to the exact APP_ENV before migrating");
 if (c.APP_ENV === "local")

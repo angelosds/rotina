@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
-import { readConfig } from "@rotina/config";
+import { readDatabaseConfig } from "@rotina/config";
 import { createDatabase, schema, eq } from "@rotina/db";
 import { emailSchema } from "@rotina/domain";
 try {
@@ -8,7 +8,7 @@ try {
 } catch {
   /* Hosted pipeline supplies environment directly. */
 }
-const c = readConfig();
+const c = readDatabaseConfig();
 if (c.APP_ENV === "local")
   c.LOCAL_DB_PATH = resolve("apps/web", c.LOCAL_DB_PATH);
 if (process.env.BOOTSTRAP_ENV !== c.APP_ENV)

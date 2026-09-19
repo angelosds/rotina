@@ -12,7 +12,7 @@ const schema = z.object({
   TEST_EMAIL_ALLOWLIST: z.string().default(""),
   LOCAL_DB_PATH: z.string().default(".local/database"),
 });
-export function readConfig(
+export function readDatabaseConfig(
   env: Record<string, string | undefined> = process.env,
 ) {
   const c = schema.parse(env);
@@ -31,6 +31,14 @@ export function readConfig(
     const db = new URL(c.DATABASE_URL);
     if (db.hostname !== c.EXPECTED_DATABASE_HOST)
       throw Error("Database host does not match environment");
+  }
+  return c;
+}
+export function readConfig(
+  env: Record<string, string | undefined> = process.env,
+) {
+  const c = readDatabaseConfig(env);
+  if (c.APP_ENV !== "local") {
     if (!c.RESEND_API_KEY || !c.EMAIL_FROM)
       throw Error("Email provider configuration is required");
     if (c.APP_ENV !== "production" && !c.TEST_EMAIL_ALLOWLIST.trim())

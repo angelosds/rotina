@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createDatabase, schema, eq, sql } from "@rotina/db";
-import { readConfig } from "@rotina/config";
+import { readConfig, readDatabaseConfig } from "@rotina/config";
 import {
   issueInvitation,
   inspectInvitation,
@@ -34,20 +34,36 @@ beforeAll(async () => {
     .split(";")
     .filter((s) => s.trim()))
     await db.execute(sql.raw(s));
-  await db
-    .insert(schema.user)
-    .values({
-      id: owner,
-      name: "Owner",
-      email: "owner@example.com",
-      emailVerified: true,
-    });
+  await db.insert(schema.user).values({
+    id: owner,
+    name: "Owner",
+    email: "owner@example.com",
+    emailVerified: true,
+  });
   await db
     .insert(schema.profile)
     .values({ userId: owner, role: "owner", onboarded: true });
 }, 30000);
 afterAll(close);
 describe("Environment boundaries", () => {
+  it("allows database administration without mail but refuses incomplete runtime", () => {
+    const environment = {
+      APP_ENV: "staging",
+      APP_URL: "https://staging.example.com",
+      AUTH_SECRET: config.AUTH_SECRET,
+      DATABASE_URL: "postgresql://staging.example.com/db",
+      EXPECTED_DATABASE_HOST: "staging.example.com",
+    };
+    expect(readDatabaseConfig(environment).APP_ENV).toBe("staging");
+    expect(() => readConfig(environment)).toThrow("Email provider");
+    expect(() =>
+      readConfig({
+        ...environment,
+        RESEND_API_KEY: "test-only",
+        EMAIL_FROM: "test@example.com",
+      }),
+    ).toThrow("allowlist");
+  });
   it("rejects hosted local mode", () =>
     expect(() =>
       readConfig({
