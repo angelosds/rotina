@@ -1,0 +1,26 @@
+{
+  "name": "rotina",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "pnpm --filter @rotina/web dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "test": "vitest run",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "owner:create": "tsx scripts/owner.ts"
+  },
+  "devDependencies": {
+    "turbo": "2.11.2",
+    "typescript": "^5.9.3",
+    "tsx": "^4.20.0",
+    "vitest": "^4.0.0",
+    "@types/node": "^24.0.0"
+  },
+  "dependencies": {
+    "@rotina/db": "workspace:*",
+    "@rotina/config": "workspace:*",
+    "@rotina/domain": "workspace:*"
+  },
+  "type": "module"
+}

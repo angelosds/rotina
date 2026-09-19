@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS "user" (id text PRIMARY KEY,name text NOT NULL,email text UNIQUE NOT NULL,email_verified boolean NOT NULL DEFAULT false,image text,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS session (id text PRIMARY KEY,token text UNIQUE NOT NULL,expires_at timestamptz NOT NULL,user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,ip_address text,user_agent text,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS session_user_idx ON session(user_id);
+CREATE TABLE IF NOT EXISTS account (id text PRIMARY KEY,account_id text NOT NULL,provider_id text NOT NULL,user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,access_token text,refresh_token text,id_token text,access_token_expires_at timestamp,refresh_token_expires_at timestamp,scope text,password text,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS verification (id text PRIMARY KEY,identifier text NOT NULL,value text NOT NULL,expires_at timestamptz NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification(identifier);
+CREATE TABLE IF NOT EXISTS profile (user_id text PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,role text NOT NULL DEFAULT 'member' CHECK(role IN ('owner','member')),timezone text NOT NULL DEFAULT 'America/Sao_Paulo',onboarded boolean NOT NULL DEFAULT false);
+CREATE UNIQUE INDEX IF NOT EXISTS single_owner ON profile(role) WHERE role='owner';
+CREATE TABLE IF NOT EXISTS invitation (id text PRIMARY KEY,email text UNIQUE NOT NULL,token_hash text UNIQUE NOT NULL,inviter_id text NOT NULL REFERENCES "user"(id),expires_at timestamptz NOT NULL,accepted_at timestamptz,revoked_at timestamptz,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS throttle (key text PRIMARY KEY,count integer NOT NULL,expires_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS rate_limit (id text PRIMARY KEY,key text UNIQUE NOT NULL,count integer NOT NULL,last_request bigint NOT NULL);

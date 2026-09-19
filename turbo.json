@@ -1,0 +1,24 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "APP_ENV",
+    "APP_URL",
+    "DATABASE_URL",
+    "EXPECTED_DATABASE_HOST",
+    "AUTH_SECRET",
+    "RESEND_API_KEY",
+    "EMAIL_FROM",
+    "TEST_EMAIL_ALLOWLIST",
+    "VERCEL",
+    "VERCEL_ENV",
+    "LOCAL_DB_PATH"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "typecheck": { "dependsOn": ["^typecheck"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}
