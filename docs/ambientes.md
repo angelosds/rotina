@@ -1,6 +1,6 @@
 # Ambientes e publicação
 
-Configuração em 18/09/2026: os dois projetos Vercel e bancos Neon gratuitos foram provisionados em São Paulo. Migração inicial e proprietário aplicados em ambos. Autenticação hospedada ainda depende de configurar Resend, verificar domínio e validar staging; não está liberada para uso.
+Configuração atualizada em 19/09/2026: os dois projetos Vercel e bancos Neon gratuitos foram provisionados em São Paulo. Migração inicial e proprietário foram aplicados em ambos. O domínio do Resend está verificado, cada ambiente possui sua própria chave de envio e o staging está publicado.
 
 | Recurso | Staging | Produção |
 |---|---|---|
@@ -11,9 +11,9 @@ Configuração em 18/09/2026: os dois projetos Vercel e bancos Neon gratuitos fo
 | AUTH_SECRET | Exclusivo de staging | Exclusivo de produção |
 | E-mail | Chave própria, destinatários permitidos | Chave própria, domínio verificado |
 
-URLs reservadas: `https://rotina-staging.vercel.app` e `https://rotina-eight-phi.vercel.app`. A existência do domínio não indica implantação operacional. O remetente escolhido é `acesso@rotina.angelosds.com`. O usuário escolheu conta gratuita diretamente no Resend, pois o plano gratuito foi recusado pelo Marketplace.
+URLs: `https://rotina-staging.vercel.app` para validação e `https://rotina-eight-phi.vercel.app` reservada para produção. O remetente verificado é `acesso@rotina.angelosds.com`. O usuário escolheu uma conta gratuita diretamente no Resend, pois o plano gratuito foi recusado pelo Marketplace.
 
-Os bancos foram conectados apenas ao ambiente Production do respectivo projeto Vercel. Previews automáticos estão desabilitados. O Ignored Build Step está temporariamente em `exit 0` nos dois projetos para impedir publicação automática antes da configuração e validação completas. Remover essa suspensão primeiro em staging, validá-lo e só depois liberar produção.
+Os bancos foram conectados apenas ao ambiente Production do respectivo projeto Vercel. Previews automáticos estão desabilitados. O projeto de staging publica automaticamente a branch `staging`; o projeto real continua com Ignored Build Step em `exit 0`, impedindo publicação automática até a aprovação explícita da versão candidata.
 
 Os dois projetos usam Next.js, raiz `apps/web`, Node.js 24 e acesso aos pacotes do monorepo fora da raiz. Instalação com lockfile congelado. Configure APP_URL com a URL estável de cada ambiente. A classificação Production do projeto Vercel de staging **não** muda APP_ENV=staging.
 
@@ -34,7 +34,7 @@ Use PostgreSQL por integração do Vercel Marketplace. E-mail exige um provedor 
 2. Provisionar bancos independentes, configurar variáveis e remetente.
 3. Em processo administrativo com variáveis do ambiente alvo, definir MIGRATE_ENV igual a APP_ENV e executar `pnpm db:migrate`.
 4. Definir BOOTSTRAP_ENV igual a APP_ENV e OWNER_EMAIL; executar `pnpm owner:create` uma única vez. O proprietário só acessa depois de comprovar o e-mail pelo link.
-5. Publicar staging e validar login real, convites, mobile/desktop, expiração, revogação e permissões. Testar entrega de e-mail.
+5. Publicar staging e validar login real, convites, mobile/desktop, expiração, revogação e permissões. A publicação, a entrega do link de login e o layout mobile já foram validados; a sessão autenticada e o fluxo de convite ainda exigem validação final.
 6. Promover o mesmo commit validado para main, executar migrações compatíveis em produção e publicar.
 
 Migrações não rodam no build nem ao abrir páginas. A ferramenta registra checksum e impede alterar uma migração aplicada. Para mudanças futuras, adicionar outra migração e preferir expansão compatível antes de remoção. Antes de migração em produção, criar backup/restauração no provedor e verificar recuperação. Rollback de código não desfaz alterações no banco.
