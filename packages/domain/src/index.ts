@@ -12,8 +12,36 @@ export async function requireOwner(db: Database, userId: string) {
     .select()
     .from(schema.profile)
     .where(eq(schema.profile.userId, userId));
-  if (p?.role !== "owner")
+  if (p?.role !== "owner" || p.suspendedAt)
     throw new AccessError("Acesso restrito ao proprietário.");
+}
+export async function updateMemberAccess(
+  db: Database,
+  actor: string,
+  memberId: string,
+  suspended: boolean,
+) {
+  await requireOwner(db, actor);
+  if (actor === memberId)
+    throw new AccessError("O proprietário não pode suspender o próprio acesso.");
+  return db.transaction(async (tx) => {
+    const [member] = await tx
+      .update(schema.profile)
+      .set({ suspendedAt: suspended ? new Date() : null })
+      .where(
+        and(
+          eq(schema.profile.userId, memberId),
+          eq(schema.profile.role, "member"),
+        ),
+      )
+      .returning();
+    if (!member) throw new AccessError("Membro não encontrado.");
+    if (suspended)
+      await tx
+        .delete(schema.session)
+        .where(eq(schema.session.userId, memberId));
+    return member;
+  });
 }
 export async function consumeLimit(
   db: Database,

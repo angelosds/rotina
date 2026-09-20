@@ -1,6 +1,12 @@
 import type { ReactNode, ButtonHTMLAttributes } from "react";
-export function Card({ children }: { children: ReactNode }) {
-  return <section className="card">{children}</section>;
+export function Card({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <section className={`card ${className}`}>{children}</section>;
 }
 export function Button({
   className = "",

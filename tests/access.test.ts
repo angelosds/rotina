@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createDatabase, schema, eq, sql } from "@rotina/db";
 import { readConfig, readDatabaseConfig } from "@rotina/config";
@@ -10,6 +10,7 @@ import {
   revokeInvitation,
   consumeLimit,
   updateOwnProfile,
+  updateMemberAccess,
 } from "@rotina/domain";
 import { createAuth } from "../apps/web/src/lib/auth";
 import type { Email } from "../apps/web/src/lib/email";
@@ -30,10 +31,16 @@ const headers = new Headers({
 });
 const owner = randomUUID();
 beforeAll(async () => {
-  for (const s of readFileSync("packages/db/migrations/0001_access.sql", "utf8")
-    .split(";")
-    .filter((s) => s.trim()))
-    await db.execute(sql.raw(s));
+  for (const migration of readdirSync("packages/db/migrations")
+    .filter((file) => file.endsWith(".sql"))
+    .sort())
+    for (const statement of readFileSync(
+      `packages/db/migrations/${migration}`,
+      "utf8",
+    )
+      .split(";")
+      .filter((value) => value.trim()))
+      await db.execute(sql.raw(statement));
   await db.insert(schema.user).values({
     id: owner,
     name: "Owner",
@@ -138,6 +145,62 @@ describe("Invitations and user isolation", () => {
   it("limits repeated operations persistently", async () => {
     expect((await consumeLimit(db, "test", 1)).allowed).toBe(true);
     expect((await consumeLimit(db, "test", 1)).allowed).toBe(false);
+  });
+  it("lets the owner suspend and reactivate a member without deleting data", async () => {
+    const invite = await issueInvitation(db, owner, "access@example.com");
+    const member = await acceptInvitation(db, invite.token);
+    await db.insert(schema.session).values([
+      {
+        id: randomUUID(),
+        token: randomUUID(),
+        expiresAt: new Date(Date.now() + 86400000),
+        userId: member.id,
+      },
+      {
+        id: randomUUID(),
+        token: randomUUID(),
+        expiresAt: new Date(Date.now() + 86400000),
+        userId: owner,
+      },
+    ]);
+
+    await expect(
+      updateMemberAccess(db, member.id, owner, true),
+    ).rejects.toThrow();
+    await expect(
+      updateMemberAccess(db, owner, owner, true),
+    ).rejects.toThrow();
+    await updateMemberAccess(db, owner, member.id, true);
+
+    const [suspended] = await db
+      .select()
+      .from(schema.profile)
+      .where(eq(schema.profile.userId, member.id));
+    expect(suspended!.suspendedAt).toBeInstanceOf(Date);
+    expect(
+      await db
+        .select()
+        .from(schema.session)
+        .where(eq(schema.session.userId, member.id)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(schema.session)
+        .where(eq(schema.session.userId, owner)),
+    ).toHaveLength(1);
+
+    await updateMemberAccess(db, owner, member.id, false);
+    const [reactivated] = await db
+      .select()
+      .from(schema.profile)
+      .where(eq(schema.profile.userId, member.id));
+    const [preservedUser] = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, member.id));
+    expect(reactivated!.suspendedAt).toBeNull();
+    expect(preservedUser!.email).toBe("access@example.com");
   });
 });
 describe("Better Auth magic links", () => {

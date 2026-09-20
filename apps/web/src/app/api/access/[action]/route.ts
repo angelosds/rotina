@@ -6,10 +6,11 @@ import {
   issueInvitation,
   revokeInvitation,
   requireOwner,
+  updateMemberAccess,
   updateOwnProfile,
   AccessError,
 } from "@rotina/domain";
-import { eq, schema } from "@rotina/db";
+import { and, eq, isNull, schema } from "@rotina/db";
 import { sendEmail } from "@/lib/email";
 export const runtime = "nodejs";
 export async function POST(
@@ -63,7 +64,12 @@ export async function POST(
         .select({ id: schema.user.id })
         .from(schema.user)
         .innerJoin(schema.profile, eq(schema.user.id, schema.profile.userId))
-        .where(eq(schema.user.email, email));
+        .where(
+          and(
+            eq(schema.user.email, email),
+            isNull(schema.profile.suspendedAt),
+          ),
+        );
       if (u) {
         try {
           await auth.api.signInMagicLink({
@@ -95,6 +101,24 @@ export async function POST(
         throw new AccessError(
           "Este link expirou ou já foi usado. Peça outro link.",
         );
+      const verified = (await result
+        .clone()
+        .json()
+        .catch(() => null)) as { user?: { id?: string } } | null;
+      if (verified?.user?.id) {
+        const [profile] = await db
+          .select({ suspendedAt: schema.profile.suspendedAt })
+          .from(schema.profile)
+          .where(eq(schema.profile.userId, verified.user.id));
+        if (profile?.suspendedAt) {
+          await db
+            .delete(schema.session)
+            .where(eq(schema.session.userId, verified.user.id));
+          throw new AccessError(
+            "Seu acesso está suspenso. Fale com o proprietário do app.",
+          );
+        }
+      }
       const response = NextResponse.json({ redirect: "/hoje" });
       for (const cookie of result.headers.getSetCookie())
         response.headers.append("set-cookie", cookie);
@@ -125,6 +149,19 @@ export async function POST(
         { error: "Entre para continuar." },
         { status: 401 },
       );
+    const [activeProfile] = await db
+      .select({ suspendedAt: schema.profile.suspendedAt })
+      .from(schema.profile)
+      .where(eq(schema.profile.userId, session.user.id));
+    if (!activeProfile || activeProfile.suspendedAt) {
+      await db
+        .delete(schema.session)
+        .where(eq(schema.session.userId, session.user.id));
+      return NextResponse.json(
+        { error: "Seu acesso está suspenso. Fale com o proprietário do app." },
+        { status: 403 },
+      );
+    }
     if (action === "signout") {
       const result = await auth.api.signOut({
         headers: request.headers,
@@ -188,6 +225,21 @@ export async function POST(
     if (action === "revoke") {
       await revokeInvitation(db, session.user.id, String(body.id));
       return NextResponse.json({ message: "Convite revogado.", refresh: true });
+    }
+    if (action === "suspend-member" || action === "reactivate-member") {
+      await updateMemberAccess(
+        db,
+        session.user.id,
+        String(body.userId ?? ""),
+        action === "suspend-member",
+      );
+      return NextResponse.json({
+        message:
+          action === "suspend-member"
+            ? "Acesso suspenso. As sessões foram encerradas."
+            : "Acesso reativado.",
+        refresh: true,
+      });
     }
     return NextResponse.json(
       { error: "Ação não encontrada." },

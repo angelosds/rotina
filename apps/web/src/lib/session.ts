@@ -14,5 +14,11 @@ export async function requireUser() {
     .from(schema.profile)
     .where(eq(schema.profile.userId, s.user.id));
   if (!p) redirect("/entrar?error=access");
+  if (p.suspendedAt) {
+    await runtime()
+      .db.delete(schema.session)
+      .where(eq(schema.session.userId, s.user.id));
+    redirect("/entrar?error=suspended");
+  }
   return { ...s, profile: p };
 }

@@ -63,6 +63,7 @@ export const profile = pgTable("profile", {
   role: text("role").notNull().default("member"),
   timezone: text("timezone").notNull().default("America/Sao_Paulo"),
   onboarded: boolean("onboarded").notNull().default(false),
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
 });
 export const invitation = pgTable("invitation", {
   id: text("id").primaryKey(),
