@@ -74,6 +74,15 @@ function centsFromInput(value: string) {
   return cents > 0 ? cents : null;
 }
 
+function formatBRLCurrencyInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (!digits) return "";
+  return (Number(digits) / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 function statusClass(status: string) {
   if (status === "Vencida") return "danger-status";
   if (status === "Pago parcialmente") return "warning-status";
@@ -150,6 +159,7 @@ export function FinanceDashboard({
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
   const [preview, setPreview] = useState<PurchasePreview | null>(null);
   const [amountInput, setAmountInput] = useState("");
+  const [cardLimit, setCardLimit] = useState("");
   const [capture, setCapture] = useState(
     "Notebook 3600 em 10x Nubank @Escritório #equipamentos",
   );
@@ -185,12 +195,15 @@ export function FinanceDashboard({
   async function createCard(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
+    const form = event.currentTarget;
     setPending(true);
     setError("");
     try {
-      const values = Object.fromEntries(new FormData(event.currentTarget));
+      const values = Object.fromEntries(new FormData(form));
       const result = await financeRequest("card", values);
       cardDialog.current?.close();
+      form.reset();
+      setCardLimit("");
       announce(result.message);
       router.refresh();
     } catch (requestError) {
@@ -634,23 +647,62 @@ export function FinanceDashboard({
             Nome do cartão
             <input name="name" required maxLength={50} placeholder="Nubank" />
           </label>
-          <div className="finance-form-grid">
+          <div className="finance-form-grid finance-day-grid">
             <label>
               Dia de fechamento
-              <input name="closingDay" type="number" min="1" max="28" required />
+              <input
+                name="closingDay"
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                pattern="(?:0?[1-9]|1[0-9]|2[0-8])"
+                placeholder="Ex.: 15"
+                aria-describedby="card-days-help"
+                required
+                onInput={(event) => {
+                  event.currentTarget.value = event.currentTarget.value
+                    .replace(/\D/g, "")
+                    .slice(0, 2);
+                }}
+              />
             </label>
             <label>
               Dia de vencimento
-              <input name="dueDay" type="number" min="1" max="28" required />
+              <input
+                name="dueDay"
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                pattern="(?:0?[1-9]|1[0-9]|2[0-8])"
+                placeholder="Ex.: 22"
+                aria-describedby="card-days-help"
+                required
+                onInput={(event) => {
+                  event.currentTarget.value = event.currentTarget.value
+                    .replace(/\D/g, "")
+                    .slice(0, 2);
+                }}
+              />
             </label>
           </div>
+          <p id="card-days-help" className="small finance-field-help">
+            Digite somente o dia, entre 01 e 28.
+          </p>
           <label>
             Limite do cartão <span className="small">(opcional)</span>
-            <input
-              name="creditLimit"
-              inputMode="decimal"
-              placeholder="5.000,00"
-            />
+            <span className="finance-money-input">
+              <span aria-hidden="true">R$</span>
+              <input
+                name="creditLimit"
+                inputMode="numeric"
+                placeholder="0,00"
+                aria-label="Limite do cartão em reais"
+                value={cardLimit}
+                onChange={(event) =>
+                  setCardLimit(formatBRLCurrencyInput(event.target.value))
+                }
+              />
+            </span>
           </label>
           {error && <Notice error>{error}</Notice>}
           <Button type="submit" className="full" disabled={pending}>
