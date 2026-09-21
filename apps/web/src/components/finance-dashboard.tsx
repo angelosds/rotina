@@ -160,9 +160,7 @@ export function FinanceDashboard({
   const [preview, setPreview] = useState<PurchasePreview | null>(null);
   const [amountInput, setAmountInput] = useState("");
   const [cardLimit, setCardLimit] = useState("");
-  const [capture, setCapture] = useState(
-    "Notebook 3600 em 10x Nubank @Escritório #equipamentos",
-  );
+  const [capture, setCapture] = useState("");
   const [purchaseType, setPurchaseType] = useState<
     "single" | "installment"
   >("installment");
@@ -323,6 +321,7 @@ export function FinanceDashboard({
   function openPurchase() {
     setError("");
     setPreview(null);
+    setCapture("");
     purchaseDialog.current?.showModal();
   }
 
@@ -723,6 +722,7 @@ export function FinanceDashboard({
               <textarea
                 rows={3}
                 value={capture}
+                placeholder="Ex.: Notebook 3600 em 10x Nubank @Escritório #equipamentos"
                 onChange={(event) => setCapture(event.target.value)}
               />
             </label>
