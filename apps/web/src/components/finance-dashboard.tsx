@@ -692,7 +692,13 @@ export function FinanceDashboard({
                   <div className="purchase-row-top">
                     <div>
                       <div className="invoice-name">
-                        <h3 className={charge.refunded ? "refunded-title" : ""}>
+                        <h3
+                          className={
+                            charge.refunded && charge.kind !== "refund"
+                              ? "refunded-title"
+                              : ""
+                          }
+                        >
                           {charge.title}
                         </h3>
                         <span
@@ -713,7 +719,11 @@ export function FinanceDashboard({
                         {charge.tags.map((tag) => ` · #${tag}`).join("")}
                       </p>
                     </div>
-                    <strong>{money.format(charge.amountCents / 100)}</strong>
+                    <strong>
+                      {charge.kind === "refund" && charge.amountCents === 0
+                        ? money.format(0)
+                        : money.format(charge.amountCents / 100)}
+                    </strong>
                   </div>
                   {charge.kind === "installment" && !charge.refunded && (
                     <div
@@ -735,7 +745,9 @@ export function FinanceDashboard({
                     {charge.kind === "single"
                       ? `Inteira na fatura de ${monthName(data.month)}`
                       : charge.kind === "refund"
-                        ? `${charge.refund!.refundedInstallmentCount} parcelas cobradas · ${charge.refund!.canceledInstallmentCount} canceladas`
+                        ? charge.refund!.refundedInstallmentCount === 0
+                          ? `${charge.refund!.canceledInstallmentCount} ${charge.refund!.canceledInstallmentCount === 1 ? "parcela cancelada" : "parcelas canceladas"} antes da cobrança`
+                          : `${charge.refund!.refundedInstallmentCount} ${charge.refund!.refundedInstallmentCount === 1 ? "parcela cobrada" : "parcelas cobradas"} · ${charge.refund!.canceledInstallmentCount} ${charge.refund!.canceledInstallmentCount === 1 ? "cancelada" : "canceladas"}`
                         : `Compra total ${money.format(charge.totalCents / 100)}`}
                   </p>
                 </article>

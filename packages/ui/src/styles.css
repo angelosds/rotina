@@ -367,6 +367,14 @@ input[aria-invalid="true"] {
   filter: brightness(0.95);
   background: var(--secondary);
 }
+.button.danger-confirm {
+  background: var(--danger);
+  color: light-dark(#fff, #202020);
+}
+.button.danger-confirm:hover {
+  background: var(--danger);
+  filter: brightness(0.92);
+}
 .full {
   width: 100%;
   margin-top: 8px;
