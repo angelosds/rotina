@@ -6,6 +6,8 @@
 
 **App Shell compartilhado entre as telas autenticadas aprovado em 21 de setembro de 2026.**
 
+**Fluxo e regras de estorno integral de compras aprovados em 21 de setembro de 2026.**
+
 Esta é a base para o planejamento de todas as telas da aplicação. Substitui a direção anterior com fundos esverdeados. O nome Rotina continua provisório.
 
 ## Decisões aprovadas

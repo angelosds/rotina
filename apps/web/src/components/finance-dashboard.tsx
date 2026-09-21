@@ -7,6 +7,7 @@ import {
   CreditCard,
   Plus,
   Receipt,
+  Undo2,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,7 @@ import { Button, Notice } from "@rotina/ui";
 
 type FinanceData = Awaited<ReturnType<typeof getFinanceMonth>>;
 type Invoice = FinanceData["invoices"][number];
+type Charge = Invoice["charges"][number];
 type PurchasePreview = {
   title: string;
   totalCents: number;
@@ -87,7 +89,7 @@ function formatBRLCurrencyInput(value: string) {
 function statusClass(status: string) {
   if (status === "Vencida") return "danger-status";
   if (status === "Pago parcialmente") return "warning-status";
-  if (status === "Paga") return "active";
+  if (status === "Paga" || status === "Com crédito") return "active";
   return "";
 }
 
@@ -182,8 +184,10 @@ export function FinanceDashboard({
   const cardDialog = useRef<HTMLDialogElement>(null);
   const purchaseDialog = useRef<HTMLDialogElement>(null);
   const paymentDialog = useRef<HTMLDialogElement>(null);
+  const purchaseDetailDialog = useRef<HTMLDialogElement>(null);
   const purchaseKey = useRef(crypto.randomUUID());
   const paymentKey = useRef(crypto.randomUUID());
+  const refundKey = useRef(crypto.randomUUID());
   const [view, setView] = useState<"invoices" | "purchases">("invoices");
   const [filter, setFilter] = useState<"all" | "single" | "installment">(
     "all",
@@ -192,6 +196,9 @@ export function FinanceDashboard({
     null,
   );
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+  const [selectedPurchase, setSelectedPurchase] = useState<Charge | null>(null);
+  const [refundConfirm, setRefundConfirm] = useState(false);
+  const [refundDate, setRefundDate] = useState(today);
   const [preview, setPreview] = useState<PurchasePreview | null>(null);
   const [amountInput, setAmountInput] = useState("");
   const [cardLimit, setCardLimit] = useState("");
@@ -359,11 +366,46 @@ export function FinanceDashboard({
     }
   }
 
+  async function saveRefund() {
+    if (!selectedPurchase || pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const result = await financeRequest("refund-purchase", {
+        purchaseId: selectedPurchase.purchaseId,
+        refundedAt: refundDate,
+        idempotencyKey: refundKey.current,
+      });
+      refundKey.current = crypto.randomUUID();
+      closeDialog(purchaseDetailDialog.current);
+      setSelectedPurchase(null);
+      setRefundConfirm(false);
+      announce(result.message);
+      router.refresh();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível estornar a compra.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
   function openPurchase() {
     setError("");
     setPreview(null);
     setCapture("");
     openDialog(purchaseDialog.current);
+  }
+
+  function openPurchaseDetails(charge: Charge) {
+    setSelectedPurchase(charge);
+    setRefundConfirm(false);
+    setRefundDate(today);
+    setError("");
+    openDialog(purchaseDetailDialog.current);
   }
 
   return (
@@ -430,6 +472,11 @@ export function FinanceDashboard({
               {money.format(data.summary.paidCents / 100)} pagos ·{" "}
               {money.format(data.summary.remainingCents / 100)} restantes
             </span>
+            {data.summary.creditCents > 0 && (
+              <span>
+                {money.format(data.summary.creditCents / 100)} em crédito
+              </span>
+            )}
           </div>
           <div className="finance-next-due">
             <span>Próximo vencimento</span>
@@ -505,9 +552,15 @@ export function FinanceDashboard({
                     </div>
                   </div>
                   <div className="invoice-value">
-                    <strong>{money.format(invoice.remainingCents / 100)}</strong>
+                    <strong>
+                      {money.format(
+                        (invoice.creditCents || invoice.remainingCents) / 100,
+                      )}
+                    </strong>
                     <span>
-                      {invoice.paidCents
+                      {invoice.creditCents
+                        ? "Crédito disponível"
+                        : invoice.paidCents
                         ? `${money.format(invoice.totalCents / 100)} no total`
                         : "Restante da fatura"}
                     </span>
@@ -549,7 +602,9 @@ export function FinanceDashboard({
                         <span>
                           {charge.kind === "single"
                             ? "Compra pontual"
-                            : `${charge.installmentNumber} de ${charge.installmentCount} parcelas`}
+                            : charge.kind === "refund"
+                              ? "Estorno da compra"
+                              : `${charge.installmentNumber} de ${charge.installmentCount} parcelas`}
                           {charge.project ? ` · @${charge.project}` : ""}
                           {charge.tags.map((tag) => ` · #${tag}`).join("")}
                         </span>
@@ -562,14 +617,24 @@ export function FinanceDashboard({
                 )}
                 <div className="invoice-detail-footer">
                   <div>
-                    <span>Restante da fatura</span>
+                    <span>
+                      {selectedInvoice.creditCents
+                        ? "Crédito disponível"
+                        : "Restante da fatura"}
+                    </span>
                     <strong>
-                      {money.format(selectedInvoice.remainingCents / 100)}
+                      {money.format(
+                        (selectedInvoice.creditCents ||
+                          selectedInvoice.remainingCents) / 100,
+                      )}
                     </strong>
                   </div>
                   <Button
                     type="button"
-                    disabled={selectedInvoice.remainingCents === 0}
+                    disabled={
+                      selectedInvoice.remainingCents === 0 ||
+                      selectedInvoice.creditCents > 0
+                    }
                     onClick={() => {
                       setPaymentInvoice(selectedInvoice);
                       setError("");
@@ -610,15 +675,36 @@ export function FinanceDashboard({
             </div>
             {charges.length ? (
               charges.map((charge) => (
-                <article className="purchase-row" key={charge.id}>
+                <article
+                  className="purchase-row purchase-row-action"
+                  key={charge.id}
+                  onClick={() => openPurchaseDetails(charge)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openPurchaseDetails(charge);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Ver detalhes de ${charge.originalTitle}`}
+                >
                   <div className="purchase-row-top">
                     <div>
                       <div className="invoice-name">
-                        <h3>{charge.title}</h3>
-                        <span className="status-tag active">
-                          {charge.kind === "single"
-                            ? "Pontual"
-                            : `Parcela ${charge.installmentNumber} de ${charge.installmentCount}`}
+                        <h3 className={charge.refunded ? "refunded-title" : ""}>
+                          {charge.title}
+                        </h3>
+                        <span
+                          className={`status-tag ${charge.refunded ? "refunded-status" : "active"}`}
+                        >
+                          {charge.kind === "refund"
+                            ? "Estorno"
+                            : charge.refunded
+                              ? "Estornada"
+                              : charge.kind === "single"
+                                ? "Pontual"
+                                : `Parcela ${charge.installmentNumber} de ${charge.installmentCount}`}
                         </span>
                       </div>
                       <p className="muted">
@@ -629,7 +715,7 @@ export function FinanceDashboard({
                     </div>
                     <strong>{money.format(charge.amountCents / 100)}</strong>
                   </div>
-                  {charge.kind === "installment" && (
+                  {charge.kind === "installment" && !charge.refunded && (
                     <div
                       className="installment-progress"
                       role="progressbar"
@@ -648,7 +734,9 @@ export function FinanceDashboard({
                   <p className="small">
                     {charge.kind === "single"
                       ? `Inteira na fatura de ${monthName(data.month)}`
-                      : `Compra total ${money.format(charge.totalCents / 100)}`}
+                      : charge.kind === "refund"
+                        ? `${charge.refund!.refundedInstallmentCount} parcelas cobradas · ${charge.refund!.canceledInstallmentCount} canceladas`
+                        : `Compra total ${money.format(charge.totalCents / 100)}`}
                   </p>
                 </article>
               ))
@@ -960,6 +1048,117 @@ export function FinanceDashboard({
             </Button>
           </form>
         )}
+      </Dialog>
+
+      <Dialog
+        dialogRef={purchaseDetailDialog}
+        eyebrow={refundConfirm ? "Confirmar estorno" : "Detalhes da compra"}
+        title={
+          refundConfirm
+            ? `Estornar ${selectedPurchase?.originalTitle ?? "compra"}?`
+            : selectedPurchase?.originalTitle ?? "Compra"
+        }
+      >
+        {selectedPurchase &&
+          (refundConfirm ? (
+            <div className="purchase-review">
+              <p className="muted">
+                A compra continuará no histórico, identificada como estornada.
+              </p>
+              <div className="purchase-detail-summary">
+                <div>
+                  <span>Compra original</span>
+                  <strong>
+                    {money.format(selectedPurchase.totalCents / 100)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Parcelas afetadas</span>
+                  <strong>
+                    {selectedPurchase.installmentCount === 1
+                      ? "Compra pontual"
+                      : `Todas as ${selectedPurchase.installmentCount}`}
+                  </strong>
+                </div>
+              </div>
+              <label>
+                Data do estorno
+                <input
+                  type="date"
+                  value={refundDate}
+                  min={selectedPurchase.purchaseDate}
+                  max={today}
+                  onChange={(event) => setRefundDate(event.target.value)}
+                />
+              </label>
+              <p className="refund-warning">
+                O crédito entrará na fatura do mês desta data. Faturas
+                anteriores e pagamentos registrados não serão apagados.
+              </p>
+              {error && <Notice error>{error}</Notice>}
+              <div className="dialog-actions">
+                <Button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setRefundConfirm(false);
+                    setError("");
+                  }}
+                >
+                  Manter compra
+                </Button>
+                <Button
+                  type="button"
+                  className="danger-confirm"
+                  disabled={pending}
+                  onClick={saveRefund}
+                >
+                  {pending ? "Estornando…" : "Confirmar estorno"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="purchase-review">
+              <div className="purchase-detail-summary">
+                <div>
+                  <span>Valor total</span>
+                  <strong>
+                    {money.format(selectedPurchase.totalCents / 100)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Tipo</span>
+                  <strong>
+                    {selectedPurchase.installmentCount === 1
+                      ? "Compra pontual"
+                      : `${selectedPurchase.installmentCount} parcelas`}
+                  </strong>
+                </div>
+                <div>
+                  <span>Cartão</span>
+                  <strong>{selectedPurchase.cardName}</strong>
+                </div>
+              </div>
+              {selectedPurchase.refund ? (
+                <div className="refund-history">
+                  <span className="status-tag refunded-status">Estornada</span>
+                  <p className="muted">
+                    Estorno em {shortDate(selectedPurchase.refund.refundedAt)} ·{" "}
+                    {money.format(selectedPurchase.refund.creditCents / 100)} de
+                    crédito
+                  </p>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  className="full refund-action"
+                  onClick={() => setRefundConfirm(true)}
+                >
+                  <Undo2 aria-hidden size={18} /> Estornar compra
+                </Button>
+              )}
+            </div>
+          ))}
       </Dialog>
     </div>
   );

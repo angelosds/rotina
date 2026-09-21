@@ -856,11 +856,27 @@ body:has(.finance-page) .app-route-content {
   padding: 18px 0;
   border-bottom: 1px solid var(--secondary);
 }
+.purchase-row-action {
+  border-radius: 12px;
+  cursor: pointer;
+}
+.purchase-row-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
 .purchase-row:last-child {
   border-bottom: 0;
 }
 .purchase-row-top {
   align-items: flex-start;
+}
+.refunded-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.status-tag.refunded-status {
+  background: light-dark(#f5e9e7, #472b28);
+  color: var(--danger);
 }
 .installment-progress {
   height: 7px;
@@ -997,6 +1013,49 @@ body:has(.finance-page) .app-route-content {
 }
 .payment-summary strong {
   font-size: 1.5rem;
+}
+.purchase-detail-summary {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  margin: 18px 0;
+  border-radius: 14px;
+  background: var(--field);
+}
+.purchase-detail-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.purchase-detail-summary span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.purchase-detail-summary strong {
+  text-align: right;
+  font-size: 0.875rem;
+}
+.refund-action {
+  gap: 8px;
+  background: light-dark(#f5e9e7, #472b28);
+  color: var(--danger);
+}
+.refund-action:hover {
+  background: light-dark(#efddda, #51302c);
+}
+.refund-warning {
+  margin: 16px 0;
+  color: var(--danger);
+  font-size: 0.8125rem;
+}
+.refund-history {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.refund-history p {
+  margin: 0;
 }
 .success-toast {
   position: fixed;

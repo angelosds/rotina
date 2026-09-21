@@ -180,3 +180,11 @@ Fundos, cards, campos, superfícies elevadas, textos e sombras passam a cinzas n
 - O item ativo acompanha a rota atual. A entrada de Configurações aparece somente para perfis autorizados enquanto a área estiver restrita ao proprietário.
 - Login, confirmação de acesso e convite ficam fora da navegação principal. O primeiro acesso usa uma estrutura simplificada para manter o onboarding focado.
 - Novos módulos autenticados devem ser incluídos no App Shell para herdarem navegação, áreas seguras, limites de conteúdo e espaçamento inferior automaticamente.
+
+## Estorno de compras aprovado — 21 de setembro de 2026
+
+- O estorno é um evento vinculado à compra original e nunca apaga seu histórico. A compra recebe o status Estornada e continua consultável.
+- A data do estorno determina a fatura que recebe o crédito. Faturas anteriores permanecem inalteradas.
+- Em compras parceladas, parcelas anteriores ao mês do estorno permanecem cobradas e geram um crédito agrupado no mês do estorno. A parcela daquele mês e todas as seguintes são canceladas.
+- Pagamentos registrados não são apagados. Quando créditos e pagamentos superam as compras do mês, o saldo credor reduz automaticamente as próximas faturas do mesmo cartão em ordem cronológica.
+- O fluxo exige detalhes da compra, confirmação explícita, data do estorno e feedback de sucesso. A operação deve ser idempotente e não pode ser repetida para a mesma compra.

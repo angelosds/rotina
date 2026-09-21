@@ -240,6 +240,108 @@ export async function createCardPurchase(
   return existing;
 }
 
+export async function refundCardPurchase(
+  db: Database,
+  userId: string,
+  input: {
+    purchaseId: string;
+    refundedAt: string;
+    today: string;
+    idempotencyKey: string;
+  },
+) {
+  const parsed = z
+    .object({
+      purchaseId: z.uuid(),
+      refundedAt: dateSchema,
+      today: dateSchema,
+      idempotencyKey: z.uuid(),
+    })
+    .parse(input);
+  if (parsed.refundedAt > parsed.today)
+    throw new AccessError("A data do estorno não pode estar no futuro.");
+
+  const [idempotentRefund] = await db
+    .select()
+    .from(schema.cardPurchaseRefund)
+    .where(
+      eq(schema.cardPurchaseRefund.idempotencyKey, parsed.idempotencyKey),
+    );
+  if (idempotentRefund) {
+    if (idempotentRefund.userId !== userId)
+      throw new AccessError("Não foi possível confirmar o estorno.");
+    return idempotentRefund;
+  }
+
+  const [purchase] = await db
+    .select()
+    .from(schema.cardPurchase)
+    .where(
+      and(
+        eq(schema.cardPurchase.id, parsed.purchaseId),
+        eq(schema.cardPurchase.userId, userId),
+      ),
+    );
+  if (!purchase) throw new AccessError("Compra não encontrada.");
+  if (parsed.refundedAt < purchase.purchaseDate)
+    throw new AccessError("O estorno não pode ser anterior à compra.");
+
+  const [existingRefund] = await db
+    .select()
+    .from(schema.cardPurchaseRefund)
+    .where(eq(schema.cardPurchaseRefund.purchaseId, purchase.id));
+  if (existingRefund) throw new AccessError("Esta compra já foi estornada.");
+
+  const refundInvoiceMonth = `${parsed.refundedAt.slice(0, 7)}-01`;
+  const refundedInstallmentCount = Math.max(
+    0,
+    Math.min(
+      purchase.installmentCount,
+      monthIndex(refundInvoiceMonth) - monthIndex(purchase.firstInvoiceMonth),
+    ),
+  );
+  let creditCents = 0;
+  for (
+    let installment = 1;
+    installment <= refundedInstallmentCount;
+    installment += 1
+  )
+    creditCents += installmentAmount(
+      purchase.totalCents,
+      purchase.installmentCount,
+      installment,
+    );
+
+  const [created] = await db
+    .insert(schema.cardPurchaseRefund)
+    .values({
+      id: randomUUID(),
+      userId,
+      purchaseId: purchase.id,
+      refundedAt: parsed.refundedAt,
+      refundInvoiceMonth,
+      creditCents,
+      refundedInstallmentCount,
+      canceledInstallmentCount:
+        purchase.installmentCount - refundedInstallmentCount,
+      idempotencyKey: parsed.idempotencyKey,
+    })
+    .onConflictDoNothing()
+    .returning();
+  if (created) return created;
+
+  const [concurrentRefund] = await db
+    .select()
+    .from(schema.cardPurchaseRefund)
+    .where(eq(schema.cardPurchaseRefund.purchaseId, purchase.id));
+  if (
+    concurrentRefund?.userId === userId &&
+    concurrentRefund.idempotencyKey === parsed.idempotencyKey
+  )
+    return concurrentRefund;
+  throw new AccessError("Esta compra já foi estornada.");
+}
+
 export async function getFinanceMonth(
   db: Database,
   userId: string,
@@ -248,7 +350,7 @@ export async function getFinanceMonth(
 ) {
   const invoiceMonth = monthSchema.parse(requestedMonth);
   dateSchema.parse(today);
-  const [cards, purchases, payments] = await Promise.all([
+  const [cards, purchases, payments, refunds] = await Promise.all([
     db
       .select()
       .from(schema.creditCard)
@@ -261,50 +363,151 @@ export async function getFinanceMonth(
       .select()
       .from(schema.invoicePayment)
       .where(eq(schema.invoicePayment.userId, userId)),
+    db
+      .select()
+      .from(schema.cardPurchaseRefund)
+      .where(eq(schema.cardPurchaseRefund.userId, userId)),
   ]);
+  const refundsByPurchase = new Map(
+    refunds.map((refund) => [refund.purchaseId, refund]),
+  );
+  const purchasesById = new Map(
+    purchases.map((purchase) => [purchase.id, purchase]),
+  );
   const currentMonth = `${today.slice(0, 7)}-01`;
   const todayDay = Number(today.slice(8, 10));
   const invoices = cards.map((card) => {
+    const cardPurchases = purchases.filter(
+      (purchase) => purchase.cardId === card.id,
+    );
+    const cardPayments = payments.filter(
+      (payment) => payment.cardId === card.id,
+    );
+    const cardRefunds = refunds.filter(
+      (refund) => purchasesById.get(refund.purchaseId)?.cardId === card.id,
+    );
+
+    function installmentForMonth(
+      purchase: (typeof purchases)[number],
+      month: string,
+    ) {
+      const refund = refundsByPurchase.get(purchase.id);
+      if (refund && month >= refund.refundInvoiceMonth) return null;
+      const offset = monthIndex(month) - monthIndex(purchase.firstInvoiceMonth);
+      if (offset < 0 || offset >= purchase.installmentCount) return null;
+      const installmentNumber = offset + 1;
+      return {
+        installmentNumber,
+        amountCents: installmentAmount(
+          purchase.totalCents,
+          purchase.installmentCount,
+          installmentNumber,
+        ),
+      };
+    }
+
+    function activityForMonth(month: string) {
+      const subtotalCents = cardPurchases.reduce((total, purchase) => {
+        const installment = installmentForMonth(purchase, month);
+        return total + (installment?.amountCents ?? 0);
+      }, 0);
+      const refundCents = cardRefunds
+        .filter((refund) => refund.refundInvoiceMonth === month)
+        .reduce((total, refund) => total + refund.creditCents, 0);
+      const paidCents = cardPayments
+        .filter((payment) => payment.invoiceMonth === month)
+        .reduce((total, payment) => total + payment.amountCents, 0);
+      return { subtotalCents, refundCents, paidCents };
+    }
+
+    const activityMonths = [
+      ...cardPurchases.map((purchase) => purchase.firstInvoiceMonth),
+      ...cardPayments.map((payment) => payment.invoiceMonth),
+      ...cardRefunds.map((refund) => refund.refundInvoiceMonth),
+    ];
+    const requestedIndex = monthIndex(invoiceMonth);
+    const firstIndex = activityMonths.length
+      ? Math.min(...activityMonths.map(monthIndex), requestedIndex)
+      : requestedIndex;
+    let incomingCreditCents = 0;
+    for (let index = firstIndex; index < requestedIndex; index += 1) {
+      const month = addMonths("0000-01-01", index);
+      const activity = activityForMonth(month);
+      incomingCreditCents = Math.max(
+        0,
+        incomingCreditCents +
+          activity.refundCents +
+          activity.paidCents -
+          activity.subtotalCents,
+      );
+    }
+
     const charges = purchases
       .filter((purchase) => purchase.cardId === card.id)
       .map((purchase) => {
-        const offset =
-          monthIndex(invoiceMonth) - monthIndex(purchase.firstInvoiceMonth);
-        if (offset < 0 || offset >= purchase.installmentCount) return null;
-        const installmentNumber = offset + 1;
+        const installment = installmentForMonth(purchase, invoiceMonth);
+        if (!installment) return null;
+        const refund = refundsByPurchase.get(purchase.id) ?? null;
         return {
           id: purchase.id,
+          purchaseId: purchase.id,
+          cardName: card.name,
           title: purchase.title,
+          originalTitle: purchase.title,
           purchaseDate: purchase.purchaseDate,
           kind: purchase.installmentCount === 1 ? "single" : "installment",
-          installmentNumber,
+          installmentNumber: installment.installmentNumber,
           installmentCount: purchase.installmentCount,
-          amountCents: installmentAmount(
-            purchase.totalCents,
-            purchase.installmentCount,
-            installmentNumber,
-          ),
+          amountCents: installment.amountCents,
           totalCents: purchase.totalCents,
           project: purchase.project,
           tags: tagsFromStorage(purchase.tags),
+          refunded: Boolean(refund),
+          refund,
         };
       })
       .filter((charge): charge is NonNullable<typeof charge> => Boolean(charge))
-      .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate));
-    const totalCents = charges.reduce(
-      (total, charge) => total + charge.amountCents,
-      0,
-    );
-    const paidCents = payments
-      .filter(
-        (payment) =>
-          payment.cardId === card.id && payment.invoiceMonth === invoiceMonth,
+      .concat(
+        cardRefunds
+          .filter((refund) => refund.refundInvoiceMonth === invoiceMonth)
+          .map((refund) => {
+            const purchase = purchasesById.get(refund.purchaseId)!;
+            return {
+              id: `refund:${refund.id}`,
+              purchaseId: purchase.id,
+              cardName: card.name,
+              title: `Estorno · ${purchase.title}`,
+              originalTitle: purchase.title,
+              purchaseDate: refund.refundedAt,
+              kind: "refund" as const,
+              installmentNumber: refund.refundedInstallmentCount,
+              installmentCount: purchase.installmentCount,
+              amountCents: -refund.creditCents,
+              totalCents: purchase.totalCents,
+              project: purchase.project,
+              tags: tagsFromStorage(purchase.tags),
+              refunded: true,
+              refund,
+            };
+          }),
       )
-      .reduce((total, payment) => total + payment.amountCents, 0);
+      .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate));
+    const { subtotalCents, refundCents, paidCents } =
+      activityForMonth(invoiceMonth);
+    const totalCents = Math.max(
+      0,
+      subtotalCents - refundCents - incomingCreditCents,
+    );
     const remainingCents = Math.max(0, totalCents - paidCents);
+    const creditCents = Math.max(
+      0,
+      incomingCreditCents + refundCents + paidCents - subtotalCents,
+    );
     const dueDate = `${invoiceMonth.slice(0, 8)}${String(card.dueDay).padStart(2, "0")}`;
     let status = "Aberta";
-    if (!totalCents) status = "Sem lançamentos";
+    if (creditCents > 0) status = "Com crédito";
+    else if (!subtotalCents && !refundCents && !incomingCreditCents)
+      status = "Sem lançamentos";
     else if (remainingCents === 0) status = "Paga";
     else if (paidCents > 0) status = "Pago parcialmente";
     else if (invoiceMonth > currentMonth) status = "Prevista";
@@ -316,6 +519,10 @@ export async function getFinanceMonth(
       invoiceMonth,
       dueDate,
       status,
+      subtotalCents,
+      refundCents,
+      incomingCreditCents,
+      creditCents,
       totalCents,
       paidCents,
       remainingCents,
@@ -334,6 +541,10 @@ export async function getFinanceMonth(
     (total, invoice) => total + invoice.remainingCents,
     0,
   );
+  const creditCents = invoices.reduce(
+    (total, invoice) => total + invoice.creditCents,
+    0,
+  );
   const nextInvoice = [...invoices]
     .filter((invoice) => invoice.remainingCents > 0)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
@@ -345,6 +556,7 @@ export async function getFinanceMonth(
       totalCents,
       paidCents,
       remainingCents,
+      creditCents,
       nextDueDate: nextInvoice?.dueDate ?? null,
       nextDueCard: nextInvoice?.card.name ?? null,
     },

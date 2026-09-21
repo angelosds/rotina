@@ -9,6 +9,7 @@ import {
   getFinanceMonth,
   installmentAmount,
   previewCardPurchase,
+  refundCardPurchase,
   registerInvoicePayment,
 } from "@rotina/domain";
 
@@ -225,5 +226,138 @@ describe("Card purchases and invoices", () => {
     );
     expect(other.cards).toHaveLength(0);
     expect(other.summary.totalCents).toBe(0);
+  });
+
+  it("refunds installments in the refund month and carries card credit forward", async () => {
+    const card = await createCreditCard(db, userId, {
+      name: "Cartão Estorno",
+      closingDay: 10,
+      dueDay: 20,
+    });
+    const purchase = await createCardPurchase(db, userId, {
+      title: "Curso",
+      totalCents: 120000,
+      installmentCount: 6,
+      cardId: card.id,
+      purchaseDate: "2026-09-05",
+      firstInvoiceMonth: "2026-09-01",
+      tags: ["estudo"],
+      idempotencyKey: randomUUID(),
+    });
+    const refundKey = randomUUID();
+    const refundInput = {
+      purchaseId: purchase.id,
+      refundedAt: "2026-11-15",
+      today: "2026-11-20",
+      idempotencyKey: refundKey,
+    };
+    const refund = await refundCardPurchase(db, userId, refundInput);
+    await refundCardPurchase(db, userId, refundInput);
+    expect(refund).toMatchObject({
+      creditCents: 40000,
+      refundedInstallmentCount: 2,
+      canceledInstallmentCount: 4,
+      refundInvoiceMonth: "2026-11-01",
+    });
+
+    const september = await getFinanceMonth(
+      db,
+      userId,
+      "2026-09",
+      "2026-11-20",
+    );
+    const septemberInvoice = september.invoices.find(
+      (invoice) => invoice.card.id === card.id,
+    )!;
+    expect(septemberInvoice.totalCents).toBe(20000);
+    expect(septemberInvoice.charges[0]).toMatchObject({
+      title: "Curso",
+      installmentNumber: 1,
+      refunded: true,
+    });
+
+    const october = await getFinanceMonth(
+      db,
+      userId,
+      "2026-10",
+      "2026-11-20",
+    );
+    expect(
+      october.invoices.find((invoice) => invoice.card.id === card.id),
+    ).toMatchObject({ totalCents: 20000, creditCents: 0 });
+
+    const november = await getFinanceMonth(
+      db,
+      userId,
+      "2026-11",
+      "2026-11-20",
+    );
+    const novemberInvoice = november.invoices.find(
+      (invoice) => invoice.card.id === card.id,
+    )!;
+    expect(novemberInvoice).toMatchObject({
+      totalCents: 0,
+      remainingCents: 0,
+      creditCents: 40000,
+      status: "Com crédito",
+    });
+    expect(novemberInvoice.charges[0]).toMatchObject({
+      kind: "refund",
+      amountCents: -40000,
+      originalTitle: "Curso",
+    });
+
+    await createCardPurchase(db, userId, {
+      title: "Mercado de dezembro",
+      totalCents: 30000,
+      installmentCount: 1,
+      cardId: card.id,
+      purchaseDate: "2026-12-05",
+      firstInvoiceMonth: "2026-12-01",
+      tags: [],
+      idempotencyKey: randomUUID(),
+    });
+    const december = await getFinanceMonth(
+      db,
+      userId,
+      "2026-12",
+      "2026-11-20",
+    );
+    expect(
+      december.invoices.find((invoice) => invoice.card.id === card.id),
+    ).toMatchObject({ totalCents: 0, creditCents: 10000 });
+
+    await createCardPurchase(db, userId, {
+      title: "Mercado de janeiro",
+      totalCents: 15000,
+      installmentCount: 1,
+      cardId: card.id,
+      purchaseDate: "2027-01-05",
+      firstInvoiceMonth: "2027-01-01",
+      tags: [],
+      idempotencyKey: randomUUID(),
+    });
+    const january = await getFinanceMonth(
+      db,
+      userId,
+      "2027-01",
+      "2026-11-20",
+    );
+    expect(
+      january.invoices.find((invoice) => invoice.card.id === card.id),
+    ).toMatchObject({ totalCents: 5000, creditCents: 0 });
+
+    await expect(
+      refundCardPurchase(db, otherUserId, {
+        ...refundInput,
+        idempotencyKey: randomUUID(),
+      }),
+    ).rejects.toThrow("Compra não encontrada");
+    await expect(
+      refundCardPurchase(db, userId, {
+        ...refundInput,
+        idempotencyKey: randomUUID(),
+      }),
+    ).rejects.toThrow("já foi estornada");
   });
 });

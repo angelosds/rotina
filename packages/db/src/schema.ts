@@ -119,6 +119,29 @@ export const cardPurchase = pgTable("card_purchase", {
   idempotencyKey: text("idempotency_key").notNull().unique(),
   ...dates(),
 });
+export const cardPurchaseRefund = pgTable("card_purchase_refund", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  purchaseId: text("purchase_id")
+    .notNull()
+    .unique()
+    .references(() => cardPurchase.id, { onDelete: "restrict" }),
+  refundedAt: date("refunded_at", { mode: "string" }).notNull(),
+  refundInvoiceMonth: date("refund_invoice_month", {
+    mode: "string",
+  }).notNull(),
+  creditCents: integer("credit_cents").notNull(),
+  refundedInstallmentCount: integer("refunded_installment_count")
+    .notNull()
+    .default(0),
+  canceledInstallmentCount: integer("canceled_installment_count")
+    .notNull()
+    .default(0),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
+});
 export const invoicePayment = pgTable("invoice_payment", {
   id: text("id").primaryKey(),
   userId: text("user_id")

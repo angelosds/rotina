@@ -7,6 +7,7 @@ import {
   createCreditCard,
   parseMoney,
   previewCardPurchase,
+  refundCardPurchase,
   registerInvoicePayment,
 } from "@rotina/domain";
 import { runtime as getRuntime } from "@/lib/runtime";
@@ -126,6 +127,19 @@ export async function POST(
       });
       return NextResponse.json({
         message: "Pagamento registrado sem duplicar o gasto.",
+        refresh: true,
+      });
+    }
+    if (action === "refund-purchase") {
+      const today = dateInTimezone(profile.timezone);
+      await refundCardPurchase(db, session.user.id, {
+        purchaseId: String(body.purchaseId ?? ""),
+        refundedAt: String(body.refundedAt ?? ""),
+        today,
+        idempotencyKey: String(body.idempotencyKey ?? ""),
+      });
+      return NextResponse.json({
+        message: "Compra estornada. Faturas atualizadas.",
         refresh: true,
       });
     }
