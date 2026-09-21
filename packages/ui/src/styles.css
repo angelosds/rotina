@@ -1180,21 +1180,28 @@ body:has(.finance-page) .app-route-content {
   }
   .app-bottom-nav {
     position: fixed;
-    right: 12px;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    left: 12px;
+    top: 0;
+    right: 0;
+    left: 0;
     z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    height: 100vh;
+    height: 100lvh;
+    padding: 0 12px max(12px, env(safe-area-inset-bottom));
+    pointer-events: none;
+  }
+  .app-bottom-nav > nav {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    width: 100%;
     padding: 6px;
     border-radius: 28px;
     background: light-dark(rgb(255 255 255 / 82%), rgb(42 42 42 / 82%));
     box-shadow: 0 12px 36px rgb(0 0 0 / 24%), inset 0 1px rgb(255 255 255 / 20%);
     backdrop-filter: blur(22px) saturate(160%);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
-  }
-  .app-bottom-nav > nav {
-    display: contents;
+    pointer-events: auto;
   }
   .app-bottom-nav a,
   .app-bottom-nav span {
