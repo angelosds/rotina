@@ -23,11 +23,5 @@ export default async function CardsAndInvoices({
     month,
     today,
   );
-  return (
-    <FinanceDashboard
-      data={data}
-      today={today}
-      isOwner={session.profile.role === "owner"}
-    />
-  );
+  return <FinanceDashboard data={data} today={today} />;
 }

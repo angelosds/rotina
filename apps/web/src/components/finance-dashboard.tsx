@@ -1,20 +1,14 @@
 "use client";
 
 import {
-  CalendarDays,
   CheckCircle2,
-  CheckSquare,
   ChevronLeft,
   ChevronRight,
   CreditCard,
   Plus,
   Receipt,
-  Settings,
-  Sun,
-  WalletCards,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -180,11 +174,9 @@ function Dialog({
 export function FinanceDashboard({
   data,
   today,
-  isOwner,
 }: {
   data: FinanceData;
   today: string;
-  isOwner: boolean;
 }) {
   const router = useRouter();
   const cardDialog = useRef<HTMLDialogElement>(null);
@@ -376,43 +368,6 @@ export function FinanceDashboard({
 
   return (
     <div className="finance-page">
-      <header className="finance-mobile-header">
-        <Link href="/hoje" className="finance-mobile-brand">
-          rotina
-        </Link>
-        {isOwner && (
-          <Link
-            href="/configuracoes/convites"
-            className="icon-button"
-            aria-label="Abrir configurações"
-          >
-            <Settings aria-hidden size={20} />
-          </Link>
-        )}
-      </header>
-      <aside className="finance-sidebar" aria-label="Navegação principal">
-        <div className="finance-brand">rotina</div>
-        <nav>
-          <Link href="/hoje">
-            <Sun aria-hidden size={20} /> Hoje
-          </Link>
-          <span aria-disabled="true">
-            <CheckSquare aria-hidden size={20} /> Tarefas
-          </span>
-          <span aria-disabled="true">
-            <CalendarDays aria-hidden size={20} /> Agenda
-          </span>
-          <Link href="/financas/cartoes" className="current">
-            <WalletCards aria-hidden size={20} /> Finanças
-          </Link>
-        </nav>
-        {isOwner && (
-          <Link href="/configuracoes/convites" className="finance-settings">
-            <Settings aria-hidden size={20} /> Configurações
-          </Link>
-        )}
-      </aside>
-
       <div className="finance-content">
         <header className="finance-header">
           <div>
@@ -706,21 +661,6 @@ export function FinanceDashboard({
           </section>
         )}
       </div>
-
-      <nav className="finance-bottom-nav" aria-label="Navegação principal">
-        <Link href="/hoje">
-          <Sun aria-hidden size={20} /> Hoje
-        </Link>
-        <span aria-disabled="true">
-          <CheckSquare aria-hidden size={20} /> Tarefas
-        </span>
-        <span aria-disabled="true">
-          <CalendarDays aria-hidden size={20} /> Agenda
-        </span>
-        <Link href="/financas/cartoes" className="current">
-          <WalletCards aria-hidden size={20} /> Finanças
-        </Link>
-      </nav>
 
       {message && (
         <div className="success-toast" role="status" aria-live="polite">

@@ -173,3 +173,10 @@ Fundos, cards, campos, superfícies elevadas, textos e sombras passam a cinzas n
 - Formulários de inserção e edição abrem como bottom sheet no mobile e dialog compacto no desktop. A abertura combina entrada vertical e aparecimento do backdrop; o fechamento usa o movimento inverso em 220 ms. Escape, backdrop e botão Fechar usam a mesma saída. Com `prefers-reduced-motion`, a transição é removida.
 - Uma operação concluída mostra um toast curto, com ícone e texto explícito, acima da navegação. O aviso usa `role=status`, pode ser fechado e desaparece automaticamente após cerca de quatro segundos.
 - Campos de data e mês nunca podem definir largura maior que o contêiner. Em telas estreitas, os grupos são empilhados e todo campo usa `min-width: 0` e `max-width: 100%`, sem rolagem horizontal da página.
+
+## App Shell autenticado aprovado — 21 de setembro de 2026
+
+- Hoje, Tarefas, Agenda, Finanças e Configurações compartilham uma estrutura persistente. No mobile, ela contém header com área segura e navegação flutuante; no desktop, usa sidebar fixa e conteúdo central.
+- O item ativo acompanha a rota atual. A entrada de Configurações aparece somente para perfis autorizados enquanto a área estiver restrita ao proprietário.
+- Login, confirmação de acesso e convite ficam fora da navegação principal. O primeiro acesso usa uma estrutura simplificada para manter o onboarding focado.
+- Novos módulos autenticados devem ser incluídos no App Shell para herdarem navegação, áreas seguras, limites de conteúdo e espaçamento inferior automaticamente.
