@@ -1,10 +1,13 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { readDatabaseConfig } from "@rotina/config";
 import { createDatabase, sql } from "@rotina/db";
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const migrationsDirectory = resolve(repositoryRoot, "packages/db/migrations");
 try {
-  process.loadEnvFile("apps/web/.env.local");
+  process.loadEnvFile(resolve(repositoryRoot, "apps/web/.env.local"));
 } catch {
   /* Hosted pipeline supplies environment directly. */
 }
@@ -12,7 +15,7 @@ const c = readDatabaseConfig();
 if (process.env.MIGRATE_ENV !== c.APP_ENV)
   throw Error("Set MIGRATE_ENV to the exact APP_ENV before migrating");
 if (c.APP_ENV === "local")
-  c.LOCAL_DB_PATH = resolve("apps/web", c.LOCAL_DB_PATH);
+  c.LOCAL_DB_PATH = resolve(repositoryRoot, "apps/web", c.LOCAL_DB_PATH);
 const { db, close } = createDatabase(c);
 try {
   await db.transaction(async (tx) => {
@@ -20,11 +23,11 @@ try {
     await tx.execute(
       sql`create table if not exists app_migrations (name text primary key, checksum text not null, applied_at timestamptz not null default now())`,
     );
-    for (const name of readdirSync("packages/db/migrations")
+    for (const name of readdirSync(migrationsDirectory)
       .filter((n) => n.endsWith(".sql"))
       .sort()) {
       const content = readFileSync(
-        resolve("packages/db/migrations", name),
+        resolve(migrationsDirectory, name),
         "utf8",
       );
       const checksum = createHash("sha256").update(content).digest("hex");
