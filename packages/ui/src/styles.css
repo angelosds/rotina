@@ -580,7 +580,6 @@ body:has(.finance-page) .topbar {
   justify-content: center;
   gap: 14px;
   margin-bottom: 16px;
-  text-transform: capitalize;
 }
 .icon-button {
   display: inline-grid;
@@ -608,7 +607,7 @@ body:has(.finance-page) .topbar {
 .finance-featured p {
   margin: 0 0 8px;
 }
-.finance-featured > div > strong {
+.finance-featured > div:first-child > strong {
   display: block;
   font-size: 2.125rem;
   line-height: 1.2;
@@ -629,6 +628,9 @@ body:has(.finance-page) .topbar {
 }
 .finance-next-due strong {
   margin-top: 4px;
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 500;
 }
 .finance-content > .notice {
   margin: 14px 2px 0;
@@ -796,6 +798,19 @@ body:has(.finance-page) .topbar {
 .purchase-row-top {
   align-items: flex-start;
 }
+.installment-progress {
+  height: 7px;
+  margin: 15px 0 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+.installment-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lime);
+}
 .finance-empty-list {
   display: grid;
   justify-items: center;
@@ -958,7 +973,7 @@ body:has(.finance-page) .topbar {
     justify-items: start;
     text-align: left;
   }
-  .finance-featured > div > strong {
+  .finance-featured > div:first-child > strong {
     font-size: 1.875rem;
   }
   .finance-tabs {

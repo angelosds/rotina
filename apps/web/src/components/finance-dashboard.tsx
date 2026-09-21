@@ -54,6 +54,11 @@ function monthName(value: string) {
   return monthLabel.format(new Date(`${value}-01T12:00:00`));
 }
 
+function capitalizedMonthName(value: string) {
+  const label = monthName(value);
+  return label.charAt(0).toLocaleUpperCase("pt-BR") + label.slice(1);
+}
+
 function shortDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -388,7 +393,7 @@ export function FinanceDashboard({
           >
             <ChevronLeft aria-hidden size={20} />
           </button>
-          <strong>{monthName(data.month)}</strong>
+          <strong>{capitalizedMonthName(data.month)}</strong>
           <button
             type="button"
             className="icon-button"
@@ -608,6 +613,22 @@ export function FinanceDashboard({
                     </div>
                     <strong>{money.format(charge.amountCents / 100)}</strong>
                   </div>
+                  {charge.kind === "installment" && (
+                    <div
+                      className="installment-progress"
+                      role="progressbar"
+                      aria-label={`Progresso de ${charge.title}: parcela ${charge.installmentNumber} de ${charge.installmentCount}`}
+                      aria-valuemin={0}
+                      aria-valuemax={charge.installmentCount}
+                      aria-valuenow={charge.installmentNumber}
+                    >
+                      <span
+                        style={{
+                          width: `${(charge.installmentNumber / charge.installmentCount) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  )}
                   <p className="small">
                     {charge.kind === "single"
                       ? `Inteira na fatura de ${monthName(data.month)}`
