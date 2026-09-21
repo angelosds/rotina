@@ -310,6 +310,30 @@ select {
   color: var(--text);
   font-size: 1rem;
 }
+input[type="date"],
+input[type="month"] {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-align-last: left;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value,
+input[type="date"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
 input[aria-invalid="true"] {
   border-color: var(--danger);
 }
