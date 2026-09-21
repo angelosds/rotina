@@ -11,6 +11,7 @@ export const metadata: Metadata = {
     title: "Rotina",
     statusBarStyle: "black-translucent",
   },
+  other: { "apple-mobile-web-app-capable": "yes" },
   formatDetection: { telephone: false },
   robots: { index: false, follow: false },
   referrer: "no-referrer",
