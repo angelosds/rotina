@@ -2,6 +2,8 @@
 
 **Aprovada pelo usuário em 18 de setembro de 2026.**
 
+**Padrões mobile de header, navegação flutuante, drawer animado e confirmação aprovados em 21 de setembro de 2026.**
+
 Esta é a base para o planejamento de todas as telas da aplicação. Substitui a direção anterior com fundos esverdeados. O nome Rotina continua provisório.
 
 ## Decisões aprovadas
@@ -14,6 +16,10 @@ Esta é a base para o planejamento de todas as telas da aplicação. Substitui a
 - Cards sem bordas; sombra no card em destaque.
 - Preservar os espaçamentos, raios e organização apresentados nas prévias aprovadas.
 - Mesma linguagem visual no celular e no computador.
+- Header mobile respeita a área segura do sistema operacional.
+- Navegação mobile flutuante com superfície neutra translúcida e item ativo verde.
+- Inserção e edição em bottom sheet animado; confirmações de sucesso em toast acessível.
+- Campos de data e mês limitados à viewport, sem rolagem horizontal.
 
 ## Arquivos de referência
 

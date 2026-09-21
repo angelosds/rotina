@@ -2,6 +2,7 @@
 
 import {
   CalendarDays,
+  CheckCircle2,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +17,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  useEffect,
   useRef,
   useState,
   type FormEvent,
@@ -107,6 +109,30 @@ async function financeRequest(action: string, body: Record<string, unknown>) {
   return result;
 }
 
+const dialogCloseTimers = new WeakMap<HTMLDialogElement, number>();
+
+function openDialog(dialog: HTMLDialogElement | null) {
+  if (!dialog) return;
+  const closeTimer = dialogCloseTimers.get(dialog);
+  if (closeTimer) window.clearTimeout(closeTimer);
+  dialog.classList.remove("is-closing");
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeDialog(dialog: HTMLDialogElement | null) {
+  if (!dialog?.open || dialog.classList.contains("is-closing")) return;
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  dialog.classList.add("is-closing");
+  const timer = window.setTimeout(() => {
+    dialog.close();
+    dialog.classList.remove("is-closing");
+    dialogCloseTimers.delete(dialog);
+  }, reduceMotion ? 0 : 220);
+  dialogCloseTimers.set(dialog, timer);
+}
+
 function Dialog({
   dialogRef,
   title,
@@ -119,7 +145,17 @@ function Dialog({
   children: ReactNode;
 }) {
   return (
-    <dialog ref={dialogRef} className="finance-dialog">
+    <dialog
+      ref={dialogRef}
+      className="finance-dialog"
+      onCancel={(event) => {
+        event.preventDefault();
+        closeDialog(dialogRef.current);
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) closeDialog(dialogRef.current);
+      }}
+    >
       <div className="finance-dialog-content">
         <div className="finance-dialog-heading">
           <div>
@@ -130,7 +166,7 @@ function Dialog({
             type="button"
             className="icon-button"
             aria-label="Fechar"
-            onClick={() => dialogRef.current?.close()}
+            onClick={() => closeDialog(dialogRef.current)}
           >
             <X aria-hidden size={20} />
           </button>
@@ -144,9 +180,11 @@ function Dialog({
 export function FinanceDashboard({
   data,
   today,
+  isOwner,
 }: {
   data: FinanceData;
   today: string;
+  isOwner: boolean;
 }) {
   const router = useRouter();
   const cardDialog = useRef<HTMLDialogElement>(null);
@@ -172,6 +210,12 @@ export function FinanceDashboard({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 3800);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   const allCharges = data.invoices.flatMap((invoice) =>
     invoice.charges.map((charge) => ({
@@ -204,7 +248,7 @@ export function FinanceDashboard({
     try {
       const values = Object.fromEntries(new FormData(form));
       const result = await financeRequest("card", values);
-      cardDialog.current?.close();
+      closeDialog(cardDialog.current);
       form.reset();
       setCardLimit("");
       announce(result.message);
@@ -280,7 +324,7 @@ export function FinanceDashboard({
         idempotencyKey: purchaseKey.current,
       });
       purchaseKey.current = crypto.randomUUID();
-      purchaseDialog.current?.close();
+      closeDialog(purchaseDialog.current);
       setPreview(null);
       announce(result.message);
       router.refresh();
@@ -309,7 +353,7 @@ export function FinanceDashboard({
         idempotencyKey: paymentKey.current,
       });
       paymentKey.current = crypto.randomUUID();
-      paymentDialog.current?.close();
+      closeDialog(paymentDialog.current);
       announce(result.message);
       router.refresh();
     } catch (requestError) {
@@ -327,11 +371,25 @@ export function FinanceDashboard({
     setError("");
     setPreview(null);
     setCapture("");
-    purchaseDialog.current?.showModal();
+    openDialog(purchaseDialog.current);
   }
 
   return (
     <div className="finance-page">
+      <header className="finance-mobile-header">
+        <Link href="/hoje" className="finance-mobile-brand">
+          rotina
+        </Link>
+        {isOwner && (
+          <Link
+            href="/configuracoes/convites"
+            className="icon-button"
+            aria-label="Abrir configurações"
+          >
+            <Settings aria-hidden size={20} />
+          </Link>
+        )}
+      </header>
       <aside className="finance-sidebar" aria-label="Navegação principal">
         <div className="finance-brand">rotina</div>
         <nav>
@@ -348,9 +406,11 @@ export function FinanceDashboard({
             <WalletCards aria-hidden size={20} /> Finanças
           </Link>
         </nav>
-        <Link href="/configuracoes/convites" className="finance-settings">
-          <Settings aria-hidden size={20} /> Configurações
-        </Link>
+        {isOwner && (
+          <Link href="/configuracoes/convites" className="finance-settings">
+            <Settings aria-hidden size={20} /> Configurações
+          </Link>
+        )}
       </aside>
 
       <div className="finance-content">
@@ -378,7 +438,10 @@ export function FinanceDashboard({
             <p className="muted">
               Informe fechamento e vencimento para organizar as faturas.
             </p>
-            <Button type="button" onClick={() => cardDialog.current?.showModal()}>
+            <Button
+              type="button"
+              onClick={() => openDialog(cardDialog.current)}
+            >
               Adicionar cartão
             </Button>
           </section>
@@ -423,8 +486,6 @@ export function FinanceDashboard({
           </div>
         </section>
 
-        {message && <Notice>{message}</Notice>}
-
         <div className="finance-tabs" role="tablist" aria-label="Visão financeira">
           <button
             type="button"
@@ -456,7 +517,7 @@ export function FinanceDashboard({
               <Button
                 type="button"
                 className="secondary"
-                onClick={() => cardDialog.current?.showModal()}
+                onClick={() => openDialog(cardDialog.current)}
               >
                 <CreditCard aria-hidden size={18} /> Adicionar cartão
               </Button>
@@ -557,7 +618,7 @@ export function FinanceDashboard({
                     onClick={() => {
                       setPaymentInvoice(selectedInvoice);
                       setError("");
-                      paymentDialog.current?.showModal();
+                      openDialog(paymentDialog.current);
                     }}
                   >
                     Registrar pagamento
@@ -660,6 +721,20 @@ export function FinanceDashboard({
           <WalletCards aria-hidden size={20} /> Finanças
         </Link>
       </nav>
+
+      {message && (
+        <div className="success-toast" role="status" aria-live="polite">
+          <CheckCircle2 aria-hidden size={20} />
+          <span>{message}</span>
+          <button
+            type="button"
+            aria-label="Fechar confirmação"
+            onClick={() => setMessage("")}
+          >
+            <X aria-hidden size={18} />
+          </button>
+        </div>
+      )}
 
       <Dialog dialogRef={cardDialog} eyebrow="Cartões" title="Adicionar cartão">
         <form onSubmit={createCard} aria-busy={pending}>

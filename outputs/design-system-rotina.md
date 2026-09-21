@@ -165,3 +165,11 @@ Base aprovada: identidade, cards, espaçamentos e sombra. Aguardam aprovação n
 ## Revisão de cores — 18 de setembro de 2026
 
 Fundos, cards, campos, superfícies elevadas, textos e sombras passam a cinzas neutros, sem tonalidade verde. Verde reservado a tags, botões e bordas/foco de controles. Cards continuam sem borda; destaque preserva sombra. Cores semânticas de aviso, erro e informação continuam nos indicadores correspondentes. Esta revisão prevalece sobre descrições anteriores de fundos verdes. Progresso usa cinza neutro.
+
+## Padrões mobile aprovados — 21 de setembro de 2026
+
+- O topo das telas autenticadas deve ter um header neutro e translúcido, respeitando `safe-area-inset-top`. Ele impede que conteúdo e ações fiquem sob a área de status ou a sombra do iOS.
+- A navegação mobile usa uma cápsula flutuante, afastada das laterais e de `safe-area-inset-bottom`, com superfície neutra translúcida, desfoque e sombra. O destino ativo conserva o fundo verde suave aprovado.
+- Formulários de inserção e edição abrem como bottom sheet no mobile e dialog compacto no desktop. A abertura combina entrada vertical e aparecimento do backdrop; o fechamento usa o movimento inverso em 220 ms. Escape, backdrop e botão Fechar usam a mesma saída. Com `prefers-reduced-motion`, a transição é removida.
+- Uma operação concluída mostra um toast curto, com ícone e texto explícito, acima da navegação. O aviso usa `role=status`, pode ser fechado e desaparece automaticamente após cerca de quatro segundos.
+- Campos de data e mês nunca podem definir largura maior que o contêiner. Em telas estreitas, os grupos são empilhados e todo campo usa `min-width: 0` e `max-width: 100%`, sem rolagem horizontal da página.
