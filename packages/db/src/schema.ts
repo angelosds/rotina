@@ -5,6 +5,7 @@ import {
   timestamp,
   integer,
   bigint,
+  date,
 } from "drizzle-orm/pg-core";
 const dates = () => ({
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -87,4 +88,48 @@ export const rateLimit = pgTable("rate_limit", {
   key: text("key").notNull().unique(),
   count: integer("count").notNull(),
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+export const creditCard = pgTable("credit_card", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  closingDay: integer("closing_day").notNull(),
+  dueDay: integer("due_day").notNull(),
+  creditLimitCents: integer("credit_limit_cents"),
+  active: boolean("active").notNull().default(true),
+  ...dates(),
+});
+export const cardPurchase = pgTable("card_purchase", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  cardId: text("card_id")
+    .notNull()
+    .references(() => creditCard.id, { onDelete: "restrict" }),
+  title: text("title").notNull(),
+  purchaseDate: date("purchase_date", { mode: "string" }).notNull(),
+  totalCents: integer("total_cents").notNull(),
+  installmentCount: integer("installment_count").notNull().default(1),
+  firstInvoiceMonth: date("first_invoice_month", { mode: "string" }).notNull(),
+  project: text("project"),
+  tags: text("tags").notNull().default("[]"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
+});
+export const invoicePayment = pgTable("invoice_payment", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  cardId: text("card_id")
+    .notNull()
+    .references(() => creditCard.id, { onDelete: "restrict" }),
+  invoiceMonth: date("invoice_month", { mode: "string" }).notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  paidAt: date("paid_at", { mode: "string" }).notNull(),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
 });

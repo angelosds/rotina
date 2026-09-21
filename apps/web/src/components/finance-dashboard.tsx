@@ -1,0 +1,878 @@
+"use client";
+
+import {
+  CalendarDays,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Plus,
+  Receipt,
+  Settings,
+  Sun,
+  WalletCards,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  useRef,
+  useState,
+  type FormEvent,
+  type RefObject,
+  type ReactNode,
+} from "react";
+import type { getFinanceMonth } from "@rotina/domain";
+import { Button, Notice } from "@rotina/ui";
+
+type FinanceData = Awaited<ReturnType<typeof getFinanceMonth>>;
+type Invoice = FinanceData["invoices"][number];
+type PurchasePreview = {
+  title: string;
+  totalCents: number;
+  installmentCount: number;
+  installmentCents: number;
+  finalInstallmentCents: number;
+  cardId: string;
+  cardName: string;
+  purchaseDate: string;
+  firstInvoiceMonth: string;
+  project: string | null;
+  tags: string[];
+};
+
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+const monthLabel = new Intl.DateTimeFormat("pt-BR", {
+  month: "long",
+  year: "numeric",
+});
+
+function monthName(value: string) {
+  return monthLabel.format(new Date(`${value}-01T12:00:00`));
+}
+
+function shortDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${value}T12:00:00`));
+}
+
+function moveMonth(value: string, amount: number) {
+  const date = new Date(`${value}-01T12:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + amount);
+  return date.toISOString().slice(0, 7);
+}
+
+function centsFromInput(value: string) {
+  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const cents = Math.round(Number(normalized) * 100);
+  return cents > 0 ? cents : null;
+}
+
+function statusClass(status: string) {
+  if (status === "Vencida") return "danger-status";
+  if (status === "Pago parcialmente") return "warning-status";
+  if (status === "Paga") return "active";
+  return "";
+}
+
+async function financeRequest(action: string, body: Record<string, unknown>) {
+  const response = await fetch(`/api/finance/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok)
+    throw new Error(result.error ?? "Não foi possível concluir.");
+  return result;
+}
+
+function Dialog({
+  dialogRef,
+  title,
+  eyebrow,
+  children,
+}: {
+  dialogRef: RefObject<HTMLDialogElement | null>;
+  title: string;
+  eyebrow: string;
+  children: ReactNode;
+}) {
+  return (
+    <dialog ref={dialogRef} className="finance-dialog">
+      <div className="finance-dialog-content">
+        <div className="finance-dialog-heading">
+          <div>
+            <span className="finance-eyebrow">{eyebrow}</span>
+            <h2>{title}</h2>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Fechar"
+            onClick={() => dialogRef.current?.close()}
+          >
+            <X aria-hidden size={20} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </dialog>
+  );
+}
+
+export function FinanceDashboard({
+  data,
+  today,
+}: {
+  data: FinanceData;
+  today: string;
+}) {
+  const router = useRouter();
+  const cardDialog = useRef<HTMLDialogElement>(null);
+  const purchaseDialog = useRef<HTMLDialogElement>(null);
+  const paymentDialog = useRef<HTMLDialogElement>(null);
+  const purchaseKey = useRef(crypto.randomUUID());
+  const paymentKey = useRef(crypto.randomUUID());
+  const [view, setView] = useState<"invoices" | "purchases">("invoices");
+  const [filter, setFilter] = useState<"all" | "single" | "installment">(
+    "all",
+  );
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
+    null,
+  );
+  const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+  const [preview, setPreview] = useState<PurchasePreview | null>(null);
+  const [amountInput, setAmountInput] = useState("");
+  const [capture, setCapture] = useState(
+    "Notebook 3600 em 10x Nubank @Escritório #equipamentos",
+  );
+  const [purchaseType, setPurchaseType] = useState<
+    "single" | "installment"
+  >("installment");
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const allCharges = data.invoices.flatMap((invoice) =>
+    invoice.charges.map((charge) => ({
+      ...charge,
+      cardName: invoice.card.name,
+    })),
+  );
+  const charges = allCharges.filter(
+    (charge) => filter === "all" || charge.kind === filter,
+  );
+  const selectedInvoice = data.invoices.find(
+    (invoice) => invoice.card.id === selectedInvoiceId,
+  );
+
+  function navigateMonth(amount: number) {
+    router.push(`/financas/cartoes?mes=${moveMonth(data.month, amount)}`);
+  }
+
+  function announce(text: string) {
+    setMessage(text);
+    setError("");
+  }
+
+  async function createCard(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      const result = await financeRequest("card", values);
+      cardDialog.current?.close();
+      announce(result.message);
+      router.refresh();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível adicionar o cartão.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function reviewPurchase() {
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const result = await financeRequest("preview-purchase", {
+        text: capture,
+        purchaseDate: today,
+      });
+      setPreview(result.preview);
+      setAmountInput(
+        (result.preview.totalCents / 100).toFixed(2).replace(".", ","),
+      );
+      setPurchaseType(
+        result.preview.installmentCount > 1 ? "installment" : "single",
+      );
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível revisar a compra.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function updatePreview(values: Partial<PurchasePreview>) {
+    setPreview((current) => (current ? { ...current, ...values } : current));
+  }
+
+  function selectPurchaseType(type: "single" | "installment") {
+    setPurchaseType(type);
+    if (!preview) return;
+    updatePreview({
+      installmentCount:
+        type === "single"
+          ? 1
+          : Math.max(2, preview.installmentCount),
+    });
+  }
+
+  async function savePurchase() {
+    if (!preview || pending) return;
+    const totalCents = centsFromInput(amountInput);
+    if (!totalCents) {
+      setError("Informe um valor válido, como 486,90.");
+      return;
+    }
+    setPending(true);
+    setError("");
+    try {
+      const result = await financeRequest("purchase", {
+        ...preview,
+        totalCents,
+        installmentCount:
+          purchaseType === "single" ? 1 : preview.installmentCount,
+        idempotencyKey: purchaseKey.current,
+      });
+      purchaseKey.current = crypto.randomUUID();
+      purchaseDialog.current?.close();
+      setPreview(null);
+      announce(result.message);
+      router.refresh();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível salvar a compra.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function savePayment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!paymentInvoice || pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      const result = await financeRequest("payment", {
+        ...values,
+        cardId: paymentInvoice.card.id,
+        invoiceMonth: `${data.month}-01`,
+        idempotencyKey: paymentKey.current,
+      });
+      paymentKey.current = crypto.randomUUID();
+      paymentDialog.current?.close();
+      announce(result.message);
+      router.refresh();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Não foi possível registrar o pagamento.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function openPurchase() {
+    setError("");
+    setPreview(null);
+    purchaseDialog.current?.showModal();
+  }
+
+  return (
+    <div className="finance-page">
+      <aside className="finance-sidebar" aria-label="Navegação principal">
+        <div className="finance-brand">rotina</div>
+        <nav>
+          <Link href="/hoje">
+            <Sun aria-hidden size={20} /> Hoje
+          </Link>
+          <span aria-disabled="true">
+            <CheckSquare aria-hidden size={20} /> Tarefas
+          </span>
+          <span aria-disabled="true">
+            <CalendarDays aria-hidden size={20} /> Agenda
+          </span>
+          <Link href="/financas/cartoes" className="current">
+            <WalletCards aria-hidden size={20} /> Finanças
+          </Link>
+        </nav>
+        <Link href="/configuracoes/convites" className="finance-settings">
+          <Settings aria-hidden size={20} /> Configurações
+        </Link>
+      </aside>
+
+      <div className="finance-content">
+        <header className="finance-header">
+          <div>
+            <span className="finance-eyebrow">Finanças</span>
+            <h1>Cartões e faturas</h1>
+            <p className="muted">
+              Acompanhe compras, parcelas e pagamentos sem duplicar valores.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={openPurchase}
+            disabled={!data.cards.length}
+          >
+            <Plus aria-hidden size={18} /> Nova compra
+          </Button>
+        </header>
+
+        {!data.cards.length && (
+          <section className="finance-empty-card">
+            <CreditCard aria-hidden size={28} />
+            <h2>Cadastre seu primeiro cartão</h2>
+            <p className="muted">
+              Informe fechamento e vencimento para organizar as faturas.
+            </p>
+            <Button type="button" onClick={() => cardDialog.current?.showModal()}>
+              Adicionar cartão
+            </Button>
+          </section>
+        )}
+
+        <div className="finance-month" aria-label="Selecionar mês">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Mês anterior"
+            onClick={() => navigateMonth(-1)}
+          >
+            <ChevronLeft aria-hidden size={20} />
+          </button>
+          <strong>{monthName(data.month)}</strong>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Próximo mês"
+            onClick={() => navigateMonth(1)}
+          >
+            <ChevronRight aria-hidden size={20} />
+          </button>
+        </div>
+
+        <section className="finance-featured">
+          <div>
+            <p>Total das faturas de {monthName(data.month).split(" de ")[0]}</p>
+            <strong>{money.format(data.summary.totalCents / 100)}</strong>
+            <span>
+              {money.format(data.summary.paidCents / 100)} pagos ·{" "}
+              {money.format(data.summary.remainingCents / 100)} restantes
+            </span>
+          </div>
+          <div className="finance-next-due">
+            <span>Próximo vencimento</span>
+            <strong>
+              {data.summary.nextDueDate
+                ? `${shortDate(data.summary.nextDueDate)} · ${data.summary.nextDueCard}`
+                : "Nenhuma pendência"}
+            </strong>
+          </div>
+        </section>
+
+        {message && <Notice>{message}</Notice>}
+
+        <div className="finance-tabs" role="tablist" aria-label="Visão financeira">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "invoices"}
+            onClick={() => setView("invoices")}
+          >
+            Faturas <span>{data.invoices.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "purchases"}
+            onClick={() => setView("purchases")}
+          >
+            Compras <span>{allCharges.length}</span>
+          </button>
+        </div>
+
+        {view === "invoices" ? (
+          <section className="finance-panel">
+            <div className="finance-section-heading">
+              <div>
+                <h2>Faturas do mês</h2>
+                <p className="muted">
+                  Valores das compras atribuídas a cada cartão.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="secondary"
+                onClick={() => cardDialog.current?.showModal()}
+              >
+                <CreditCard aria-hidden size={18} /> Adicionar cartão
+              </Button>
+            </div>
+            {data.invoices.length === 0 ? (
+              <div className="finance-empty-list">
+                <Receipt aria-hidden size={28} />
+                <p>Nenhuma fatura neste mês.</p>
+              </div>
+            ) : (
+              data.invoices.map((invoice) => (
+                <article className="invoice-row" key={invoice.card.id}>
+                  <div className="invoice-identity">
+                    <span className="card-symbol">
+                      {invoice.card.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <div>
+                      <div className="invoice-name">
+                        <h3>{invoice.card.name}</h3>
+                        <span
+                          className={`status-tag ${statusClass(invoice.status)}`}
+                        >
+                          {invoice.status}
+                        </span>
+                      </div>
+                      <p className="muted">
+                        Fecha dia {invoice.card.closingDay} · vence em{" "}
+                        {shortDate(invoice.dueDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="invoice-value">
+                    <strong>{money.format(invoice.remainingCents / 100)}</strong>
+                    <span>
+                      {invoice.paidCents
+                        ? `${money.format(invoice.totalCents / 100)} no total`
+                        : "Restante da fatura"}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    className="secondary"
+                    onClick={() =>
+                      setSelectedInvoiceId(
+                        selectedInvoiceId === invoice.card.id
+                          ? null
+                          : invoice.card.id,
+                      )
+                    }
+                  >
+                    {selectedInvoiceId === invoice.card.id
+                      ? "Fechar detalhes"
+                      : "Ver fatura"}
+                  </Button>
+                </article>
+              ))
+            )}
+
+            {selectedInvoice && (
+              <div className="invoice-detail">
+                <div className="finance-section-heading">
+                  <div>
+                    <span className="finance-eyebrow">
+                      {selectedInvoice.card.name} · {monthName(data.month)}
+                    </span>
+                    <h2>Compras e parcelas</h2>
+                  </div>
+                </div>
+                {selectedInvoice.charges.length ? (
+                  selectedInvoice.charges.map((charge) => (
+                    <div className="charge-row" key={charge.id}>
+                      <div>
+                        <strong>{charge.title}</strong>
+                        <span>
+                          {charge.kind === "single"
+                            ? "Compra pontual"
+                            : `${charge.installmentNumber} de ${charge.installmentCount} parcelas`}
+                          {charge.project ? ` · @${charge.project}` : ""}
+                          {charge.tags.map((tag) => ` · #${tag}`).join("")}
+                        </span>
+                      </div>
+                      <strong>{money.format(charge.amountCents / 100)}</strong>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted">Nenhuma compra nesta fatura.</p>
+                )}
+                <div className="invoice-detail-footer">
+                  <div>
+                    <span>Restante da fatura</span>
+                    <strong>
+                      {money.format(selectedInvoice.remainingCents / 100)}
+                    </strong>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={selectedInvoice.remainingCents === 0}
+                    onClick={() => {
+                      setPaymentInvoice(selectedInvoice);
+                      setError("");
+                      paymentDialog.current?.showModal();
+                    }}
+                  >
+                    Registrar pagamento
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : (
+          <section className="finance-panel">
+            <div className="finance-section-heading">
+              <div>
+                <h2>Compras nas faturas de {monthName(data.month)}</h2>
+                <p className="muted">
+                  Compras pontuais e parcelas que compõem o mês selecionado.
+                </p>
+              </div>
+            </div>
+            <div className="purchase-filters" aria-label="Filtrar compras">
+              {[
+                ["all", "Todas"],
+                ["single", "Pontuais"],
+                ["installment", "Parceladas"],
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(value as typeof filter)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {charges.length ? (
+              charges.map((charge) => (
+                <article className="purchase-row" key={charge.id}>
+                  <div className="purchase-row-top">
+                    <div>
+                      <div className="invoice-name">
+                        <h3>{charge.title}</h3>
+                        <span className="status-tag active">
+                          {charge.kind === "single"
+                            ? "Pontual"
+                            : `Parcela ${charge.installmentNumber} de ${charge.installmentCount}`}
+                        </span>
+                      </div>
+                      <p className="muted">
+                        {charge.cardName} · {shortDate(charge.purchaseDate)}
+                        {charge.project ? ` · @${charge.project}` : ""}
+                        {charge.tags.map((tag) => ` · #${tag}`).join("")}
+                      </p>
+                    </div>
+                    <strong>{money.format(charge.amountCents / 100)}</strong>
+                  </div>
+                  <p className="small">
+                    {charge.kind === "single"
+                      ? `Inteira na fatura de ${monthName(data.month)}`
+                      : `Compra total ${money.format(charge.totalCents / 100)}`}
+                  </p>
+                </article>
+              ))
+            ) : (
+              <div className="finance-empty-list">
+                <Receipt aria-hidden size={28} />
+                <p>Nenhuma compra neste mês.</p>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      <nav className="finance-bottom-nav" aria-label="Navegação principal">
+        <Link href="/hoje">
+          <Sun aria-hidden size={20} /> Hoje
+        </Link>
+        <span aria-disabled="true">
+          <CheckSquare aria-hidden size={20} /> Tarefas
+        </span>
+        <span aria-disabled="true">
+          <CalendarDays aria-hidden size={20} /> Agenda
+        </span>
+        <Link href="/financas/cartoes" className="current">
+          <WalletCards aria-hidden size={20} /> Finanças
+        </Link>
+      </nav>
+
+      <Dialog dialogRef={cardDialog} eyebrow="Cartões" title="Adicionar cartão">
+        <form onSubmit={createCard} aria-busy={pending}>
+          <label>
+            Nome do cartão
+            <input name="name" required maxLength={50} placeholder="Nubank" />
+          </label>
+          <div className="finance-form-grid">
+            <label>
+              Dia de fechamento
+              <input name="closingDay" type="number" min="1" max="28" required />
+            </label>
+            <label>
+              Dia de vencimento
+              <input name="dueDay" type="number" min="1" max="28" required />
+            </label>
+          </div>
+          <label>
+            Limite do cartão <span className="small">(opcional)</span>
+            <input
+              name="creditLimit"
+              inputMode="decimal"
+              placeholder="5.000,00"
+            />
+          </label>
+          {error && <Notice error>{error}</Notice>}
+          <Button type="submit" className="full" disabled={pending}>
+            {pending ? "Salvando…" : "Adicionar cartão"}
+          </Button>
+        </form>
+      </Dialog>
+
+      <Dialog
+        dialogRef={purchaseDialog}
+        eyebrow="Nova compra"
+        title="Registre do seu jeito"
+      >
+        {!preview ? (
+          <>
+            <label>
+              O que você comprou?
+              <textarea
+                rows={3}
+                value={capture}
+                onChange={(event) => setCapture(event.target.value)}
+              />
+            </label>
+            <p className="small capture-help">
+              Use “em 10x”, o nome do cartão, @projeto e #tags. Você poderá
+              revisar tudo.
+            </p>
+            {error && <Notice error>{error}</Notice>}
+            <Button
+              type="button"
+              className="full"
+              disabled={pending}
+              onClick={reviewPurchase}
+            >
+              {pending ? "Interpretando…" : "Revisar compra"}
+            </Button>
+          </>
+        ) : (
+          <div className="purchase-review">
+            <div className="purchase-type-toggle" aria-label="Tipo da compra">
+              <button
+                type="button"
+                aria-pressed={purchaseType === "single"}
+                onClick={() => selectPurchaseType("single")}
+              >
+                Pontual
+              </button>
+              <button
+                type="button"
+                aria-pressed={purchaseType === "installment"}
+                onClick={() => selectPurchaseType("installment")}
+              >
+                Parcelada
+              </button>
+            </div>
+            <label>
+              Descrição
+              <input
+                value={preview.title}
+                maxLength={120}
+                onChange={(event) => updatePreview({ title: event.target.value })}
+              />
+            </label>
+            <div className="finance-form-grid">
+              <label>
+                Valor total
+                <input
+                  value={amountInput}
+                  inputMode="decimal"
+                  onChange={(event) => setAmountInput(event.target.value)}
+                />
+              </label>
+              {purchaseType === "installment" && (
+                <label>
+                  Parcelas
+                  <input
+                    type="number"
+                    min="2"
+                    max="120"
+                    value={preview.installmentCount}
+                    onChange={(event) =>
+                      updatePreview({ installmentCount: Number(event.target.value) })
+                    }
+                  />
+                </label>
+              )}
+            </div>
+            <label>
+              Cartão
+              <select
+                value={preview.cardId}
+                onChange={(event) => updatePreview({ cardId: event.target.value })}
+              >
+                {data.cards.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {card.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="finance-form-grid">
+              <label>
+                Data da compra
+                <input
+                  type="date"
+                  value={preview.purchaseDate}
+                  onChange={(event) =>
+                    updatePreview({ purchaseDate: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                {purchaseType === "single" ? "Fatura" : "Primeira fatura"}
+                <input
+                  type="month"
+                  value={preview.firstInvoiceMonth.slice(0, 7)}
+                  onChange={(event) =>
+                    updatePreview({ firstInvoiceMonth: `${event.target.value}-01` })
+                  }
+                />
+              </label>
+            </div>
+            <div className="finance-form-grid">
+              <label>
+                Projeto <span className="small">(opcional)</span>
+                <input
+                  value={preview.project ?? ""}
+                  maxLength={60}
+                  placeholder="Escritório"
+                  onChange={(event) =>
+                    updatePreview({ project: event.target.value || null })
+                  }
+                />
+              </label>
+              <label>
+                Tags <span className="small">(separadas por vírgula)</span>
+                <input
+                  value={preview.tags.join(", ")}
+                  placeholder="equipamentos, trabalho"
+                  onChange={(event) =>
+                    updatePreview({
+                      tags: event.target.value
+                        .split(",")
+                        .map((tag) => tag.trim().replace(/^#/, ""))
+                        .filter(Boolean)
+                        .slice(0, 10),
+                    })
+                  }
+                />
+              </label>
+            </div>
+            {(preview.project || preview.tags.length > 0) && (
+              <div className="review-chips">
+                {preview.project && <span>@{preview.project}</span>}
+                {preview.tags.map((tag) => (
+                  <span key={tag}>#{tag}</span>
+                ))}
+              </div>
+            )}
+            <p className="small capture-help">
+              {purchaseType === "single"
+                ? "O valor inteiro será incluído somente na fatura escolhida."
+                : `Serão ${preview.installmentCount} parcelas vinculadas à compra original.`}
+            </p>
+            {error && <Notice error>{error}</Notice>}
+            <div className="dialog-actions">
+              <Button
+                type="button"
+                className="secondary"
+                onClick={() => setPreview(null)}
+              >
+                Voltar ao texto
+              </Button>
+              <Button type="button" disabled={pending} onClick={savePurchase}>
+                {pending
+                  ? "Salvando…"
+                  : purchaseType === "single"
+                    ? "Salvar compra pontual"
+                    : "Salvar compra parcelada"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      <Dialog
+        dialogRef={paymentDialog}
+        eyebrow={`${paymentInvoice?.card.name ?? "Fatura"} · ${monthName(data.month)}`}
+        title="Registrar pagamento"
+      >
+        {paymentInvoice && (
+          <form onSubmit={savePayment} aria-busy={pending}>
+            <div className="payment-summary">
+              <span>Restante da fatura</span>
+              <strong>{money.format(paymentInvoice.remainingCents / 100)}</strong>
+            </div>
+            <label>
+              Valor pago
+              <input
+                name="amount"
+                inputMode="decimal"
+                required
+                defaultValue={(paymentInvoice.remainingCents / 100)
+                  .toFixed(2)
+                  .replace(".", ",")}
+              />
+            </label>
+            <label>
+              Data do pagamento
+              <input name="paidAt" type="date" required defaultValue={today} />
+            </label>
+            <p className="small capture-help">
+              O pagamento reduz o restante da fatura e não cria uma segunda
+              despesa.
+            </p>
+            {error && <Notice error>{error}</Notice>}
+            <Button type="submit" className="full" disabled={pending}>
+              {pending ? "Registrando…" : "Registrar pagamento"}
+            </Button>
+          </form>
+        )}
+      </Dialog>
+    </div>
+  );
+}

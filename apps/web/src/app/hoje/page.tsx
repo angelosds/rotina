@@ -14,9 +14,12 @@ export default async function Today() {
       </span>
       <h1>Um novo começo, {s.user.name}</h1>
       <p className="muted">
-        Seu acesso está pronto. O cadastro de tarefas, compromissos e gastos
-        será habilitado na próxima etapa.
+        Seu acesso está pronto. O módulo de cartões, faturas e compras já está
+        disponível no ambiente de testes.
       </p>
+      <Link href="/financas/cartoes" className="button full">
+        Abrir cartões e faturas
+      </Link>
       {s.profile.role === "owner" && (
         <Link href="/configuracoes/convites" className="button full">
           Convidar alguém

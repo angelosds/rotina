@@ -1,12 +1,14 @@
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import { type Database, schema, eq, and, gt, isNull, sql } from "@rotina/db";
+export * from "./finance";
+export { AccessError } from "./errors";
+import { AccessError } from "./errors";
 export const emailSchema = z
   .email()
   .max(254)
   .transform((v) => v.trim().toLowerCase());
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
-export class AccessError extends Error {}
 export async function requireOwner(db: Database, userId: string) {
   const [p] = await db
     .select()

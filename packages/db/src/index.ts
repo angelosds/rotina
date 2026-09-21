@@ -5,7 +5,7 @@ import { drizzle as postgres } from "drizzle-orm/node-postgres";
 import { drizzle as local } from "drizzle-orm/pglite";
 import { PGlite } from "@electric-sql/pglite";
 import type { Config } from "@rotina/config";
-import * as schema from "./schema";
+import * as schema from "./schema.ts";
 export { schema };
 export function createDatabase(c: Config) {
   if (c.APP_ENV === "local") {
