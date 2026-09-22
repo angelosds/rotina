@@ -1402,6 +1402,7 @@ body:has(.finance-page) .app-route-content {
     );
     left: 12px;
     z-index: 10;
+    display: block;
     pointer-events: none;
   }
   .app-bottom-nav > nav {
