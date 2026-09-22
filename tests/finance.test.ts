@@ -7,6 +7,7 @@ import {
   createCardPurchase,
   createCreditCard,
   getFinanceMonth,
+  invoiceMonthForPurchase,
   installmentAmount,
   previewCardPurchase,
   refundCardPurchase,
@@ -57,6 +58,18 @@ beforeAll(async () => {
 afterAll(close);
 
 describe("Card purchases and invoices", () => {
+  it("assigns purchases to the month in which the invoice is due", () => {
+    expect(invoiceMonthForPurchase("2026-09-08", 12, 22)).toBe(
+      "2026-09-01",
+    );
+    expect(invoiceMonthForPurchase("2026-09-21", 27, 5)).toBe(
+      "2026-10-01",
+    );
+    expect(invoiceMonthForPurchase("2026-09-28", 27, 5)).toBe(
+      "2026-11-01",
+    );
+  });
+
   it("interprets single and installment purchases around the closing day", async () => {
     const card = await createCreditCard(db, userId, {
       name: "Nubank",

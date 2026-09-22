@@ -8,7 +8,6 @@ import {
   CreditCard,
   Plus,
   Receipt,
-  RotateCcw,
   Sparkles,
   Utensils,
   X,
@@ -69,6 +68,20 @@ function moveMonth(value: string, amount: number) {
   const date = new Date(`${value}-01T12:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + amount);
   return date.toISOString().slice(0, 7);
+}
+
+function shortDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${value}T12:00:00`));
+}
+
+function statusClass(status: string) {
+  if (status === "Vencida") return "danger-status";
+  if (status === "Pago parcialmente") return "warning-status";
+  if (status === "Paga" || status === "Com crédito") return "active";
+  return "";
 }
 
 function formatCurrencyInput(value: string) {
@@ -177,8 +190,7 @@ function dayHeading(value: string, today: string) {
 }
 
 function EntryIcon({ entry }: { entry: ExpenseEntry }) {
-  if (entry.kind === "refund") return <RotateCcw aria-hidden size={19} />;
-  if (entry.sourceKind === "card") return <CreditCard aria-hidden size={19} />;
+  if (entry.kind === "invoice") return <CreditCard aria-hidden size={19} />;
   if (entry.sourceKind === "benefit") return <Utensils aria-hidden size={19} />;
   return <Banknote aria-hidden size={19} />;
 }
@@ -298,7 +310,7 @@ export function ExpensesDashboard({
           <div>
             <span className="finance-eyebrow">Finanças</span>
             <h1>Gastos</h1>
-            <p className="muted">Acompanhe onde seu dinheiro foi usado.</p>
+            <p className="muted">O que precisa ser pago no mês.</p>
           </div>
           <Button type="button" onClick={startExpense}>
             <Plus aria-hidden size={18} /> Novo gasto
@@ -329,19 +341,14 @@ export function ExpensesDashboard({
           </button>
         </div>
 
-        <section className="finance-featured expenses-featured">
+        <section className="finance-featured expenses-featured expenses-cashflow-featured">
           <div>
-            <p>Total gasto no mês</p>
+            <p>Total do mês</p>
             <strong>{money.format(data.summary.totalCents / 100)}</strong>
-            <span>Inclui compras no cartão pela data da compra</span>
-          </div>
-          <div className="finance-next-due">
-            <span>Maior categoria</span>
-            <strong>
-              {data.summary.largestCategory
-                ? `${data.summary.largestCategory} · ${money.format(data.summary.largestCategoryCents / 100)}`
-                : "Nenhuma categoria"}
-            </strong>
+            <span>
+              {money.format(data.summary.invoiceCents / 100)} em faturas ·{" "}
+              {money.format(data.summary.otherCents / 100)} em outros gastos
+            </span>
           </div>
         </section>
 
@@ -349,7 +356,7 @@ export function ExpensesDashboard({
           {[
             ["all", "Todos"],
             ["account", "Contas"],
-            ["card", "Cartões"],
+            ["card", "Faturas"],
             ["benefit", "Benefícios"],
           ].map(([value, label]) => (
             <button
@@ -378,36 +385,47 @@ export function ExpensesDashboard({
                     )}
                   </span>
                 </div>
-                {dayEntries.map((entry) => (
-                  <article className="expense-row" key={entry.id}>
-                    <span className={`expense-icon ${entry.kind}`}>
-                      <EntryIcon entry={entry} />
-                    </span>
-                    <div className="expense-identity">
-                      <div className="invoice-name">
-                        <h3 className={entry.refunded && entry.kind !== "refund" ? "refunded-title" : ""}>
-                          {entry.title}
-                        </h3>
-                        {entry.refunded && (
-                          <span className="status-tag refunded-status">
-                            {entry.kind === "refund" ? "Estorno" : "Estornada"}
-                          </span>
-                        )}
+                {dayEntries.map((entry) => {
+                  const content = (
+                    <>
+                      <span className={`expense-icon ${entry.kind}`}>
+                        <EntryIcon entry={entry} />
+                      </span>
+                      <div className="expense-identity">
+                        <div className="invoice-name">
+                          <h3>{entry.title}</h3>
+                          {entry.kind === "invoice" && (
+                            <span
+                              className={`status-tag ${statusClass(entry.status)}`}
+                            >
+                              {entry.status}
+                            </span>
+                          )}
+                        </div>
+                        <p className="muted">
+                          {entry.kind === "invoice"
+                            ? `Vence ${shortDate(entry.spentAt)} · ${money.format(entry.paidCents / 100)} pagos · ${money.format(entry.remainingCents / 100)} restantes`
+                            : `${entry.sourceLabel}${entry.project ? ` · @${entry.project}` : ""}${entry.tags.map((tag) => ` · #${tag}`).join("")}`}
+                        </p>
                       </div>
-                      <p className="muted">
-                        {entry.sourceLabel}
-                        {entry.sourceKind === "card" && entry.kind !== "refund"
-                          ? " · Cartão de crédito"
-                          : ""}
-                        {entry.project ? ` · @${entry.project}` : ""}
-                        {entry.tags.map((tag) => ` · #${tag}`).join("")}
-                      </p>
-                    </div>
-                    <strong className={entry.amountCents < 0 ? "refund-value" : ""}>
-                      {money.format(entry.amountCents / 100)}
-                    </strong>
-                  </article>
-                ))}
+                      <strong>{money.format(entry.amountCents / 100)}</strong>
+                    </>
+                  );
+                  return entry.kind === "invoice" ? (
+                    <Link
+                      className="expense-row expense-row-link"
+                      href={`/financas/cartoes?mes=${entry.invoiceMonth}&cartao=${entry.cardId}`}
+                      key={entry.id}
+                      aria-label={`Ver ${entry.title}`}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <article className="expense-row" key={entry.id}>
+                      {content}
+                    </article>
+                  );
+                })}
               </section>
             ))}
           </div>
@@ -532,8 +550,8 @@ export function ExpensesDashboard({
               </label>
             </div>
             <p className="expense-info-note">
-              Compras no cartão são registradas em Cartões e aparecem aqui
-              automaticamente, sem duplicação.
+              Compras no cartão são registradas em Cartões. Aqui aparece apenas
+              o total da fatura no mês do vencimento.
             </p>
             {error && <Notice error>{error}</Notice>}
             <Button

@@ -927,6 +927,9 @@ body:has(.finance-page) .app-route-content {
 .expenses-featured {
   align-items: center;
 }
+.expenses-cashflow-featured {
+  grid-template-columns: minmax(0, 1fr);
+}
 .expense-filters {
   margin: 22px 0 12px;
 }
@@ -965,6 +968,18 @@ body:has(.finance-page) .app-route-content {
 .expense-row:last-child {
   border-bottom: 0;
 }
+.expense-row-link {
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 160ms ease;
+}
+.expense-row-link:hover {
+  background: var(--secondary);
+}
+.expense-row-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
 .expense-icon {
   display: grid;
   place-items: center;
@@ -973,6 +988,10 @@ body:has(.finance-page) .app-route-content {
   border-radius: 14px;
   background: var(--tag-bg);
   color: var(--tag-text);
+}
+.expense-icon.invoice {
+  background: var(--lime);
+  color: #202020;
 }
 .expense-icon.refund {
   background: light-dark(#f5e9e7, #472b28);

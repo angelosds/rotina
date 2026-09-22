@@ -17,6 +17,11 @@ export default async function Expenses({
   const month = /^\d{4}-\d{2}$/.test(requestedMonth ?? "")
     ? requestedMonth!
     : today.slice(0, 7);
-  const data = await getExpensesMonth(runtime().db, session.user.id, month);
+  const data = await getExpensesMonth(
+    runtime().db,
+    session.user.id,
+    month,
+    today,
+  );
   return <ExpensesDashboard data={data} today={today} />;
 }

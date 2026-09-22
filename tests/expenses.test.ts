@@ -76,7 +76,7 @@ describe("Expenses", () => {
     );
   });
 
-  it("combines manual and card expenses without counting invoice payment", async () => {
+  it("combines manual expenses with invoice commitments without duplicating purchases or payments", async () => {
     const manualKey = randomUUID();
     const manual = {
       title: "Almoço",
@@ -113,17 +113,31 @@ describe("Expenses", () => {
       paidAt: "2026-09-20",
       idempotencyKey: randomUUID(),
     });
-    const september = await getExpensesMonth(db, userId, "2026-09");
+    const september = await getExpensesMonth(
+      db,
+      userId,
+      "2026-09",
+      "2026-09-21",
+    );
     expect(september.summary).toMatchObject({
       totalCents: 4590,
-      largestCategory: "Alimentação",
-      largestCategoryCents: 3590,
+      invoiceCents: 1000,
+      otherCents: 3590,
     });
     expect(september.entries).toHaveLength(2);
     expect(september.entries.map((entry) => entry.kind).sort()).toEqual([
-      "card",
+      "invoice",
       "manual",
     ]);
+    expect(
+      september.entries.find((entry) => entry.kind === "invoice"),
+    ).toMatchObject({
+      title: "Fatura Nubank",
+      amountCents: 1000,
+      paidCents: 1000,
+      remainingCents: 0,
+      status: "Paga",
+    });
 
     await refundCardPurchase(db, userId, {
       purchaseId: purchase.id,
@@ -131,13 +145,18 @@ describe("Expenses", () => {
       today: "2026-10-05",
       idempotencyKey: randomUUID(),
     });
-    const october = await getExpensesMonth(db, userId, "2026-10");
-    expect(october.summary.totalCents).toBe(-1000);
-    expect(october.entries[0]).toMatchObject({
-      title: "Estorno · Mercado",
-      amountCents: -1000,
-      kind: "refund",
+    const october = await getExpensesMonth(
+      db,
+      userId,
+      "2026-10",
+      "2026-10-05",
+    );
+    expect(october.summary).toMatchObject({
+      totalCents: 0,
+      invoiceCents: 0,
+      otherCents: 0,
     });
+    expect(october.entries).toEqual([]);
   });
 
   it("keeps expenses private and rejects cross-user idempotency", async () => {
@@ -160,7 +179,12 @@ describe("Expenses", () => {
         idempotencyKey: key,
       }),
     ).rejects.toThrow("Não foi possível confirmar o gasto");
-    const otherMonth = await getExpensesMonth(db, otherUserId, "2026-11");
+    const otherMonth = await getExpensesMonth(
+      db,
+      otherUserId,
+      "2026-11",
+      "2026-11-01",
+    );
     expect(otherMonth.entries).toEqual([]);
     expect(otherMonth.summary.totalCents).toBe(0);
   });

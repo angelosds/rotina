@@ -24,6 +24,23 @@ export function addMonths(value: string, amount: number) {
   return `${year}-${String(month).padStart(2, "0")}-01`;
 }
 
+export function invoiceMonthForPurchase(
+  purchaseDate: string,
+  closingDay: number,
+  dueDay: number,
+) {
+  dateSchema.parse(purchaseDate);
+  daySchema.parse(closingDay);
+  daySchema.parse(dueDay);
+  const purchaseMonth = `${purchaseDate.slice(0, 7)}-01`;
+  const closesNextMonth = Number(purchaseDate.slice(8, 10)) > closingDay;
+  const dueAfterClosingMonth = dueDay <= closingDay;
+  return addMonths(
+    purchaseMonth,
+    Number(closesNextMonth) + Number(dueAfterClosingMonth),
+  );
+}
+
 export function installmentAmount(
   totalCents: number,
   count: number,
@@ -143,10 +160,11 @@ export async function previewCardPurchase(
     .trim();
   title = title.replace(/^[-–—·,;:]+|[-–—·,;:]+$/g, "").trim();
   if (!title) throw new AccessError("Informe uma descrição para a compra.");
-  const day = Number(purchaseDate.slice(8, 10));
-  const purchaseMonth = `${purchaseDate.slice(0, 7)}-01`;
-  const firstInvoiceMonth =
-    day <= card.closingDay ? purchaseMonth : addMonths(purchaseMonth, 1);
+  const firstInvoiceMonth = invoiceMonthForPurchase(
+    purchaseDate,
+    card.closingDay,
+    card.dueDay,
+  );
   return {
     title,
     totalCents,

@@ -9,11 +9,12 @@ export const metadata = { title: "Cartões e faturas" };
 export default async function CardsAndInvoices({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string }>;
+  searchParams: Promise<{ mes?: string; cartao?: string }>;
 }) {
   const session = await requireUser();
   const today = dateInTimezone(session.profile.timezone);
-  const requestedMonth = (await searchParams).mes;
+  const parameters = await searchParams;
+  const requestedMonth = parameters.mes;
   const month = /^\d{4}-\d{2}$/.test(requestedMonth ?? "")
     ? requestedMonth!
     : today.slice(0, 7);
@@ -23,5 +24,16 @@ export default async function CardsAndInvoices({
     month,
     today,
   );
-  return <FinanceDashboard data={data} today={today} />;
+  const initialCardId = data.invoices.some(
+    (invoice) => invoice.card.id === parameters.cartao,
+  )
+    ? parameters.cartao
+    : null;
+  return (
+    <FinanceDashboard
+      data={data}
+      today={today}
+      initialCardId={initialCardId}
+    />
+  );
 }

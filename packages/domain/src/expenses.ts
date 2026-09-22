@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { type Database, schema, eq } from "@rotina/db";
 import { AccessError } from "./errors";
-import { parseMoney } from "./finance";
+import { getFinanceMonth, parseMoney } from "./finance";
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const monthSchema = z.string().regex(/^\d{4}-\d{2}$/);
@@ -40,10 +40,6 @@ function fold(value: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR");
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toLocaleUpperCase("pt-BR") + value.slice(1);
 }
 
 function identifyPaymentMethod(text: string) {
@@ -190,33 +186,17 @@ export async function getExpensesMonth(
   db: Database,
   userId: string,
   requestedMonth: string,
+  today: string,
 ) {
   const month = monthSchema.parse(requestedMonth);
-  const [manualExpenses, purchases, cards, refunds] = await Promise.all([
+  dateSchema.parse(today);
+  const [manualExpenses, finances] = await Promise.all([
     db
       .select()
       .from(schema.expense)
       .where(eq(schema.expense.userId, userId)),
-    db
-      .select()
-      .from(schema.cardPurchase)
-      .where(eq(schema.cardPurchase.userId, userId)),
-    db
-      .select()
-      .from(schema.creditCard)
-      .where(eq(schema.creditCard.userId, userId)),
-    db
-      .select()
-      .from(schema.cardPurchaseRefund)
-      .where(eq(schema.cardPurchaseRefund.userId, userId)),
+    getFinanceMonth(db, userId, month, today),
   ]);
-  const cardsById = new Map(cards.map((card) => [card.id, card]));
-  const purchasesById = new Map(
-    purchases.map((purchase) => [purchase.id, purchase]),
-  );
-  const refundsByPurchase = new Map(
-    refunds.map((refund) => [refund.purchaseId, refund]),
-  );
   const manualEntries = manualExpenses
     .filter((expense) => expense.spentAt.startsWith(month))
     .map((expense) => {
@@ -237,59 +217,44 @@ export async function getExpensesMonth(
         refunded: false,
       };
     });
-  const cardEntries = purchases
-    .filter((purchase) => purchase.purchaseDate.startsWith(month))
-    .map((purchase) => ({
-      id: `card:${purchase.id}`,
-      title: purchase.title,
-      amountCents: purchase.totalCents,
-      spentAt: purchase.purchaseDate,
-      kind: "card" as const,
+  const invoiceEntries = finances.invoices
+    .filter((invoice) => invoice.totalCents > 0)
+    .map((invoice) => ({
+      id: `invoice:${invoice.card.id}:${month}`,
+      title: `Fatura ${invoice.card.name}`,
+      amountCents: invoice.totalCents,
+      spentAt: invoice.dueDate,
+      kind: "invoice" as const,
       sourceKind: "card" as const,
-      sourceLabel: cardsById.get(purchase.cardId)?.name ?? "Cartão",
-      project: purchase.project,
-      tags: tagsFromStorage(purchase.tags),
-      refunded: refundsByPurchase.has(purchase.id),
+      sourceLabel: invoice.card.name,
+      project: null,
+      tags: [],
+      refunded: false,
+      cardId: invoice.card.id,
+      invoiceMonth: month,
+      paidCents: Math.min(invoice.paidCents, invoice.totalCents),
+      remainingCents: invoice.remainingCents,
+      status: invoice.status,
     }));
-  const refundEntries = refunds
-    .filter((refund) => refund.refundedAt.startsWith(month))
-    .flatMap((refund) => {
-      const purchase = purchasesById.get(refund.purchaseId);
-      if (!purchase) return [];
-      return [
-        {
-          id: `refund:${refund.id}`,
-          title: `Estorno · ${purchase.title}`,
-          amountCents: -purchase.totalCents,
-          spentAt: refund.refundedAt,
-          kind: "refund" as const,
-          sourceKind: "card" as const,
-          sourceLabel: cardsById.get(purchase.cardId)?.name ?? "Cartão",
-          project: purchase.project,
-          tags: tagsFromStorage(purchase.tags),
-          refunded: true,
-        },
-      ];
-    });
-  const entries = [...manualEntries, ...cardEntries, ...refundEntries].sort(
+  const entries = [...manualEntries, ...invoiceEntries].sort(
     (a, b) =>
       b.spentAt.localeCompare(a.spentAt) || a.title.localeCompare(b.title),
   );
-  const categories = new Map<string, number>();
-  for (const entry of entries) {
-    const category = entry.tags[0] ? capitalize(entry.tags[0]) : "Sem categoria";
-    categories.set(category, (categories.get(category) ?? 0) + entry.amountCents);
-  }
-  const largestCategory = [...categories.entries()]
-    .filter(([, amount]) => amount > 0)
-    .sort((a, b) => b[1] - a[1])[0];
+  const invoiceCents = invoiceEntries.reduce(
+    (total, entry) => total + entry.amountCents,
+    0,
+  );
+  const otherCents = manualEntries.reduce(
+    (total, entry) => total + entry.amountCents,
+    0,
+  );
   return {
     month,
     entries,
     summary: {
-      totalCents: entries.reduce((total, entry) => total + entry.amountCents, 0),
-      largestCategory: largestCategory?.[0] ?? null,
-      largestCategoryCents: largestCategory?.[1] ?? 0,
+      totalCents: invoiceCents + otherCents,
+      invoiceCents,
+      otherCents,
     },
   };
 }

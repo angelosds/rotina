@@ -177,9 +177,11 @@ function Dialog({
 export function FinanceDashboard({
   data,
   today,
+  initialCardId = null,
 }: {
   data: FinanceData;
   today: string;
+  initialCardId?: string | null;
 }) {
   const router = useRouter();
   const cardDialog = useRef<HTMLDialogElement>(null);
@@ -193,9 +195,8 @@ export function FinanceDashboard({
   const [filter, setFilter] = useState<"all" | "single" | "installment">(
     "all",
   );
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
-    null,
-  );
+  const [selectedInvoiceId, setSelectedInvoiceId] =
+    useState<string | null>(initialCardId);
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Charge | null>(null);
   const [refundConfirm, setRefundConfirm] = useState(false);
