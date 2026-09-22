@@ -29,23 +29,12 @@ export const viewport: Viewport = {
   ],
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const env = process.env.APP_ENV ?? "local";
   return (
     <html lang="pt-BR">
       <body>
         <a className="skip" href="#conteudo">
           Pular para o conteúdo
         </a>
-        {env !== "production" && (
-          <div className="banner">
-            {env === "local"
-              ? "Desenvolvimento local"
-              : env === "preview"
-                ? "Prévia de teste"
-                : "Ambiente de testes"}{" "}
-            · Dados separados da produção
-          </div>
-        )}
         <div className="shell">
           <header className="topbar">
             <Link href="/" className="brand">

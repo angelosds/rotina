@@ -427,12 +427,6 @@ input[aria-invalid="true"] {
   gap: 8px;
   margin-top: 8px;
 }
-.banner {
-  text-align: center;
-  background: var(--secondary);
-  font-size: 0.75rem;
-  padding: 8px;
-}
 .skip {
   position: absolute;
   left: 16px;
@@ -521,9 +515,6 @@ body:has(.app-shell) #conteudo {
   grid-template-columns: 190px minmax(0, 1fr);
   background: var(--canvas);
 }
-body:has(.banner) .app-shell {
-  min-height: calc(100dvh - 32px);
-}
 .app-mobile-header,
 .app-bottom-nav {
   display: none;
@@ -536,9 +527,6 @@ body:has(.banner) .app-shell {
   height: 100dvh;
   padding: 28px 18px;
   background: var(--surface);
-}
-body:has(.banner) .app-sidebar {
-  height: calc(100dvh - 32px);
 }
 .app-brand {
   margin: 0 12px 34px;
@@ -1282,17 +1270,10 @@ body:has(.finance-page) .app-route-content {
 }
 
 @media (max-width: 760px) {
-  body:has(.app-shell) .banner {
-    position: relative;
-    z-index: 12;
-  }
   .app-shell {
     display: block;
     min-height: 100dvh;
     padding-bottom: calc(104px + env(safe-area-inset-bottom));
-  }
-  body:has(.banner) .app-shell {
-    min-height: calc(100dvh - 32px);
   }
   .app-mobile-header {
     position: sticky;
