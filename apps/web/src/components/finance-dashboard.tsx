@@ -10,6 +10,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -411,6 +412,12 @@ export function FinanceDashboard({
   return (
     <div className="finance-page">
       <div className="finance-content">
+        <nav className="finance-module-nav" aria-label="Módulos financeiros">
+          <Link href="/financas/gastos">Gastos</Link>
+          <Link href="/financas/cartoes" aria-current="page">
+            Cartões e faturas
+          </Link>
+        </nav>
         <header className="finance-header">
           <div>
             <span className="finance-eyebrow">Finanças</span>

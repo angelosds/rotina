@@ -32,7 +32,7 @@ function PrimaryNavigation({ pathname }: { pathname: string }) {
         <CalendarDays aria-hidden size={20} /> Agenda
       </span>
       <Link
-        href="/financas/cartoes"
+        href="/financas/gastos"
         className={
           isCurrent(pathname, "/financas") ? "current" : undefined
         }

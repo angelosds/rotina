@@ -5,8 +5,10 @@ import {
   consumeLimit,
   createCardPurchase,
   createCreditCard,
+  createExpense,
   parseMoney,
   previewCardPurchase,
+  previewExpense,
   refundCardPurchase,
   registerInvoicePayment,
 } from "@rotina/domain";
@@ -140,6 +142,42 @@ export async function POST(
       });
       return NextResponse.json({
         message: "Compra estornada. Faturas atualizadas.",
+        refresh: true,
+      });
+    }
+    if (action === "preview-expense") {
+      const spentAt =
+        typeof body.spentAt === "string"
+          ? body.spentAt
+          : dateInTimezone(profile.timezone);
+      return NextResponse.json({
+        preview: previewExpense(String(body.text ?? ""), spentAt),
+      });
+    }
+    if (action === "expense") {
+      const today = dateInTimezone(profile.timezone);
+      await createExpense(db, session.user.id, {
+        title: String(body.title ?? ""),
+        amountCents: Number(body.amountCents),
+        spentAt: String(body.spentAt ?? ""),
+        today,
+        paymentMethod: String(body.paymentMethod ?? "") as
+          | "pix"
+          | "cash"
+          | "debit"
+          | "meal_voucher"
+          | "food_voucher",
+        project:
+          typeof body.project === "string" && body.project
+            ? body.project
+            : null,
+        tags: Array.isArray(body.tags)
+          ? body.tags.filter((tag): tag is string => typeof tag === "string")
+          : [],
+        idempotencyKey: String(body.idempotencyKey ?? ""),
+      });
+      return NextResponse.json({
+        message: "Gasto salvo.",
         refresh: true,
       });
     }

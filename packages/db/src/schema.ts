@@ -156,3 +156,17 @@ export const invoicePayment = pgTable("invoice_payment", {
   idempotencyKey: text("idempotency_key").notNull().unique(),
   ...dates(),
 });
+export const expense = pgTable("expense", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  spentAt: date("spent_at", { mode: "string" }).notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  project: text("project"),
+  tags: text("tags").notNull().default("[]"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
+});
