@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 function isCurrent(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -55,20 +55,6 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const settingsCurrent = isCurrent(pathname, "/configuracoes");
-  const [bottomNavigationReady, setBottomNavigationReady] = useState(false);
-
-  useEffect(() => {
-    let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        setBottomNavigationReady(true);
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      window.cancelAnimationFrame(secondFrame);
-    };
-  }, []);
 
   return (
     <div className="app-shell">
@@ -108,11 +94,9 @@ export function AppShell({
         <div className="app-route-content">{children}</div>
       </div>
 
-      {bottomNavigationReady && (
-        <div className="app-bottom-nav">
-          <PrimaryNavigation pathname={pathname} />
-        </div>
-      )}
+      <div className="app-bottom-nav">
+        <PrimaryNavigation pathname={pathname} />
+      </div>
     </div>
   );
 }
