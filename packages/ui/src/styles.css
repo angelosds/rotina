@@ -1396,10 +1396,7 @@ body:has(.finance-page) .app-route-content {
   .app-bottom-nav {
     position: fixed;
     right: 12px;
-    bottom: max(
-      12px,
-      env(safe-area-max-inset-bottom, env(safe-area-inset-bottom, 0px))
-    );
+    bottom: 24px;
     left: 12px;
     z-index: 10;
     display: block;
@@ -1473,11 +1470,6 @@ body:has(.finance-page) .app-route-content {
   @keyframes finance-dialog-out {
     from { opacity: 1; transform: translateY(0); }
     to { opacity: 0; transform: translateY(100%); }
-  }
-}
-@media (max-width: 760px) and (display-mode: standalone) {
-  .app-bottom-nav {
-    bottom: 12px;
   }
 }
 @media (max-width: 360px) {
