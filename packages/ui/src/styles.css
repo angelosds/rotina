@@ -1475,6 +1475,11 @@ body:has(.finance-page) .app-route-content {
     to { opacity: 0; transform: translateY(100%); }
   }
 }
+@media (max-width: 760px) and (display-mode: standalone) {
+  .app-bottom-nav {
+    bottom: 12px;
+  }
+}
 @media (max-width: 360px) {
   .finance-form-grid.finance-day-grid {
     grid-template-columns: 1fr;
