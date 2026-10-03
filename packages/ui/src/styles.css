@@ -1062,20 +1062,20 @@ body:has(.finance-page) .app-route-content {
 .bill-filters {
   margin: 22px 0 12px;
 }
-.bill-list {
-  padding-block: 4px;
+.expense-day:last-child .bill-row:last-child {
+  border-radius: 0 0 18px 18px;
 }
 .bill-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  min-height: 78px;
-  padding: 12px 0;
+  min-height: 58px;
+  padding: 9px 18px;
   border: 0;
   border-bottom: 1px solid var(--secondary);
-  background: transparent;
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   text-align: left;
@@ -1513,8 +1513,9 @@ body:has(.finance-page) .app-route-content {
     font-size: 0.875rem;
   }
   .bill-row {
-    grid-template-columns: 42px minmax(0, 1fr) auto;
-    gap: 10px;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding-inline: 12px;
   }
   .bill-row > strong {
     font-size: 0.875rem;

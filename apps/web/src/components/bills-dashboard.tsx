@@ -83,6 +83,17 @@ function longDate(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function dayHeading(value: string, today: string) {
+  if (value === today) return "Hoje";
+  const yesterday = new Date(`${today}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  if (value === yesterday.toISOString().slice(0, 10)) return "Ontem";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+  }).format(new Date(`${value}T12:00:00`));
+}
+
 function formatCurrencyInput(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 11);
   if (!digits) return "";
@@ -237,6 +248,12 @@ export function BillsDashboard({
     if (filter === "paid") return occurrence.status === "Paga";
     return occurrence.status !== "Paga";
   });
+  const groups = new Map<string, BillOccurrence[]>();
+  for (const occurrence of occurrences) {
+    const entries = groups.get(occurrence.dueDate) ?? [];
+    entries.push(occurrence);
+    groups.set(occurrence.dueDate, entries);
+  }
 
   function startBill() {
     setCapture("");
@@ -428,49 +445,67 @@ export function BillsDashboard({
         </div>
 
         {occurrences.length ? (
-          <section className="finance-panel bill-list" aria-label="Despesas fixas do mês">
-            {occurrences.map((occurrence) => {
-              const content = (
-                <>
-                  <span className="expense-icon bill-icon">
-                    {occurrence.recurrence === "monthly" ? (
-                      <Repeat2 aria-hidden size={19} />
-                    ) : (
-                      <Receipt aria-hidden size={19} />
+          <section
+            className="expense-groups bill-groups"
+            aria-label="Despesas fixas agrupadas por data"
+          >
+            {[...groups.entries()].map(([date, dayOccurrences]) => (
+              <section className="expense-day bill-day" key={date}>
+                <div className="expense-day-heading bill-day-heading">
+                  <h2>{dayHeading(date, today)}</h2>
+                  <span>
+                    {money.format(
+                      dayOccurrences.reduce(
+                        (total, occurrence) => total + occurrence.amountCents,
+                        0,
+                      ) / 100,
                     )}
                   </span>
-                  <div className="expense-identity">
-                    <div className="invoice-name">
-                      <h3>{occurrence.title}</h3>
-                      <span className={`status-tag ${statusClass(occurrence.status)}`}>
-                        {occurrence.status}
+                </div>
+                {dayOccurrences.map((occurrence) => {
+                  const content = (
+                    <>
+                      <span className="expense-icon bill-icon">
+                        {occurrence.recurrence === "monthly" ? (
+                          <Repeat2 aria-hidden size={19} />
+                        ) : (
+                          <Receipt aria-hidden size={19} />
+                        )}
                       </span>
-                    </div>
-                    <p className="muted">
-                      {occurrence.status === "Paga"
-                        ? `Pago em ${shortDate(occurrence.paidAt!)}`
-                        : `${occurrence.status === "Vencida" ? "Venceu" : "Vence"} em ${shortDate(occurrence.dueDate)}`}
-                      {occurrence.project ? ` · @${occurrence.project}` : ""}
-                      {occurrence.recurrence === "monthly" ? " · recorrente" : ""}
-                    </p>
-                  </div>
-                  <strong>{money.format(occurrence.amountCents / 100)}</strong>
-                </>
-              );
-              return occurrence.status === "Paga" ? (
-                <article className="bill-row" key={occurrence.id}>{content}</article>
-              ) : (
-                <button
-                  type="button"
-                  className="bill-row bill-row-action"
-                  key={occurrence.id}
-                  onClick={() => startPayment(occurrence)}
-                  aria-label={`Registrar pagamento de ${occurrence.title}`}
-                >
-                  {content}
-                </button>
-              );
-            })}
+                      <div className="expense-identity">
+                        <div className="invoice-name">
+                          <h3>{occurrence.title}</h3>
+                          <span className={`status-tag ${statusClass(occurrence.status)}`}>
+                            {occurrence.status}
+                          </span>
+                        </div>
+                        <p className="muted">
+                          {occurrence.status === "Paga"
+                            ? `Pago em ${shortDate(occurrence.paidAt!)}`
+                            : `${occurrence.status === "Vencida" ? "Venceu" : "Vence"} em ${shortDate(occurrence.dueDate)}`}
+                          {occurrence.project ? ` · @${occurrence.project}` : ""}
+                          {occurrence.recurrence === "monthly" ? " · recorrente" : ""}
+                        </p>
+                      </div>
+                      <strong>{money.format(occurrence.amountCents / 100)}</strong>
+                    </>
+                  );
+                  return occurrence.status === "Paga" ? (
+                    <article className="bill-row" key={occurrence.id}>{content}</article>
+                  ) : (
+                    <button
+                      type="button"
+                      className="bill-row bill-row-action"
+                      key={occurrence.id}
+                      onClick={() => startPayment(occurrence)}
+                      aria-label={`Registrar pagamento de ${occurrence.title}`}
+                    >
+                      {content}
+                    </button>
+                  );
+                })}
+              </section>
+            ))}
           </section>
         ) : (
           <section className="finance-panel finance-empty-list expense-empty">
