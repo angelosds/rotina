@@ -306,6 +306,7 @@ export function ExpensesDashboard({
           </Link>
           <Link href="/financas/contas">Despesas fixas</Link>
           <Link href="/financas/cartoes">Cartões e faturas</Link>
+          <Link href="/financas/dividas">Dívidas</Link>
         </nav>
 
         <header className="finance-header">

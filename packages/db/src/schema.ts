@@ -201,3 +201,35 @@ export const billPayment = pgTable("bill_payment", {
   idempotencyKey: text("idempotency_key").notNull().unique(),
   ...dates(),
 });
+export const debt = pgTable("debt", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  originalBalanceCents: integer("original_balance_cents").notNull(),
+  installmentCount: integer("installment_count").notNull(),
+  installmentCents: integer("installment_cents").notNull(),
+  firstDueDate: date("first_due_date", { mode: "string" }).notNull(),
+  dueDay: integer("due_day").notNull(),
+  project: text("project"),
+  tags: text("tags").notNull().default("[]"),
+  active: boolean("active").notNull().default(true),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
+});
+export const debtPayment = pgTable("debt_payment", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  debtId: text("debt_id")
+    .notNull()
+    .references(() => debt.id, { onDelete: "restrict" }),
+  kind: text("kind").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  paidAt: date("paid_at", { mode: "string" }).notNull(),
+  paymentMethod: text("payment_method"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
+});

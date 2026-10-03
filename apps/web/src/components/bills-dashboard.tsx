@@ -379,6 +379,7 @@ export function BillsDashboard({
           <Link href="/financas/gastos">Gastos</Link>
           <Link href="/financas/contas" aria-current="page">Despesas fixas</Link>
           <Link href="/financas/cartoes">Cartões e faturas</Link>
+          <Link href="/financas/dividas">Dívidas</Link>
         </nav>
 
         <header className="finance-header">

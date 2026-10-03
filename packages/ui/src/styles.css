@@ -1166,6 +1166,180 @@ body:has(.finance-page) .app-route-content {
   flex: 0 0 auto;
   margin-top: 1px;
 }
+.debts-featured {
+  margin-top: 4px;
+}
+.debt-filters {
+  margin: 22px 0 12px;
+}
+.debt-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 68px;
+  padding: 10px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--secondary);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.debt-row:hover {
+  background: var(--secondary);
+}
+.debt-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.debt-row:last-child {
+  border-bottom: 0;
+}
+.expense-day:last-child .debt-row:last-child {
+  border-radius: 0 0 18px 18px;
+}
+.debt-identity,
+.debt-value {
+  display: grid;
+  min-width: 0;
+}
+.debt-identity > small,
+.debt-value small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.debt-identity .invoice-name > strong,
+.debt-value > strong {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.debt-progress {
+  height: 5px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+.debt-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lime);
+}
+.debt-value {
+  justify-items: end;
+}
+.debt-value > strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.full-field {
+  grid-column: 1 / -1;
+}
+.debt-detail {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+.debt-balance-card {
+  display: grid;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.debt-balance-card span,
+.debt-balance-card small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.debt-balance-card strong {
+  margin: 2px 0;
+  font-size: 1.625rem;
+  font-weight: 400;
+}
+.debt-detail-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  font-size: 0.8125rem;
+}
+.debt-detail-progress > i {
+  grid-column: 1 / -1;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+.debt-detail-progress b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lime);
+}
+.debt-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.debt-facts > div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--field);
+}
+.debt-facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.debt-facts dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+.debt-actions {
+  display: grid;
+  gap: 8px;
+}
+.debt-history h3,
+.debt-payment-form h3 {
+  margin: 0 0 4px;
+}
+.debt-history > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--secondary);
+  font-size: 0.8125rem;
+}
+.debt-history > div > span {
+  display: grid;
+}
+.debt-history small {
+  color: var(--muted);
+}
+.debt-history > div > strong {
+  white-space: nowrap;
+}
+.debt-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tag-text);
+  font: inherit;
+  font-size: 0.875rem;
+}
 .bill-payment-help {
   margin: -4px 0 0;
   font-size: 0.8125rem;
@@ -1509,6 +1683,9 @@ body:has(.finance-page) .app-route-content {
   .purchase-filters.bill-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .purchase-filters.debt-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .purchase-filters button {
     justify-content: center;
     padding-inline: 8px;
@@ -1540,6 +1717,14 @@ body:has(.finance-page) .app-route-content {
   }
   .bill-row > strong {
     font-size: 0.875rem;
+  }
+  .debt-row {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding-inline: 12px;
+  }
+  .debt-value small {
+    display: none;
   }
   .app-bottom-nav {
     position: fixed;

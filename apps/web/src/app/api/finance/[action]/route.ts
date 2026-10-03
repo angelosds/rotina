@@ -4,16 +4,19 @@ import {
   AccessError,
   consumeLimit,
   createBill,
+  createDebt,
   createCardPurchase,
   createCreditCard,
   createExpense,
   parseMoney,
   previewCardPurchase,
   previewBill,
+  previewDebt,
   previewExpense,
   refundCardPurchase,
   registerInvoicePayment,
   registerBillPayment,
+  registerDebtPayment,
 } from "@rotina/domain";
 import { runtime as getRuntime } from "@/lib/runtime";
 import { dateInTimezone } from "@/lib/date";
@@ -235,6 +238,64 @@ export async function POST(
       });
       return NextResponse.json({
         message: "Pagamento registrado sem duplicar o gasto.",
+        refresh: true,
+      });
+    }
+    if (action === "preview-debt") {
+      const referenceDate =
+        typeof body.referenceDate === "string"
+          ? body.referenceDate
+          : dateInTimezone(profile.timezone);
+      return NextResponse.json({
+        preview: previewDebt(String(body.text ?? ""), referenceDate),
+      });
+    }
+    if (action === "debt") {
+      await createDebt(db, session.user.id, {
+        title: String(body.title ?? ""),
+        originalBalanceCents: Number(body.originalBalanceCents),
+        installmentCount: Number(body.installmentCount),
+        installmentCents: Number(body.installmentCents),
+        firstDueDate: String(body.firstDueDate ?? ""),
+        project:
+          typeof body.project === "string" && body.project
+            ? body.project
+            : null,
+        tags: Array.isArray(body.tags)
+          ? body.tags.filter((tag): tag is string => typeof tag === "string")
+          : [],
+        idempotencyKey: String(body.idempotencyKey ?? ""),
+      });
+      return NextResponse.json({
+        message: "Dívida salva.",
+        refresh: true,
+      });
+    }
+    if (action === "debt-payment") {
+      const today = dateInTimezone(profile.timezone);
+      await registerDebtPayment(db, session.user.id, {
+        debtId: String(body.debtId ?? ""),
+        kind: String(body.kind ?? "") as "regular" | "extra",
+        amountCents: parseMoney(String(body.amount ?? "")),
+        paidAt: String(body.paidAt ?? ""),
+        today,
+        paymentMethod:
+          typeof body.paymentMethod === "string" && body.paymentMethod
+            ? (body.paymentMethod as
+                | "pix"
+                | "cash"
+                | "debit"
+                | "bank_transfer"
+                | "automatic_debit"
+                | "other")
+            : null,
+        idempotencyKey: String(body.idempotencyKey ?? ""),
+      });
+      return NextResponse.json({
+        message:
+          body.kind === "extra"
+            ? "Pagamento extra registrado."
+            : "Pagamento da parcela registrado.",
         refresh: true,
       });
     }
