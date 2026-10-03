@@ -6,7 +6,12 @@ import { setSessionCookie } from "better-auth/cookies";
 import { z } from "zod";
 import type { Config } from "@rotina/config";
 import { type Database, schema } from "@rotina/db";
-import { acceptInvitation, AccessError } from "@rotina/domain";
+import {
+  acceptInvitation,
+  consumeLoginCode,
+  issueLoginCode,
+  AccessError,
+} from "@rotina/domain";
 import type { Email } from "./email";
 export function createAuth(
   db: Database,
@@ -34,16 +39,51 @@ export function createAuth(
         sendMagicLink: async ({ email, token }) => {
           const url = new URL("/entrar/confirmar", c.APP_URL);
           url.searchParams.set("token", token);
+          const code = await issueLoginCode(db, email, c.AUTH_SECRET);
           await send({
             to: email,
-            subject: "Seu link para entrar no Rotina",
-            text: `Confirme sua entrada no Rotina:\n${url}\n\nVálido por 15 minutos e para um único uso. Se não solicitou, ignore este e-mail.`,
+            subject: "Seu código para entrar no Rotina",
+            text: `Seu código é ${code}\n\nDigite este código no Rotina. Ele é válido por 15 minutos e só pode ser usado uma vez.\n\nEntrar pelo navegador:\n${url}\n\nSe não solicitou, ignore este e-mail.`,
           });
         },
       }),
       {
         id: "rotina-invitations",
         endpoints: {
+          verifyRotinaLoginCode: createAuthEndpoint(
+            "/rotina/verify-login-code",
+            {
+              method: "POST",
+              body: z.object({
+                email: z.email().max(254),
+                code: z.string().regex(/^\d{6}$/),
+              }),
+              requireHeaders: true,
+            },
+            async (ctx) => {
+              try {
+                const u = await consumeLoginCode(
+                  db,
+                  ctx.body.email,
+                  ctx.body.code,
+                  c.AUTH_SECRET,
+                );
+                const session = await ctx.context.internalAdapter.createSession(
+                  u.id,
+                );
+                if (!session)
+                  throw new APIError("INTERNAL_SERVER_ERROR", {
+                    message: "Não foi possível iniciar sua sessão.",
+                  });
+                await setSessionCookie(ctx, { session, user: u });
+                return ctx.json({ ok: true });
+              } catch (e) {
+                if (e instanceof AccessError)
+                  throw new APIError("BAD_REQUEST", { message: e.message });
+                throw e;
+              }
+            },
+          ),
           acceptRotinaInvitation: createAuthEndpoint(
             "/rotina/accept-invitation",
             {

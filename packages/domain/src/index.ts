@@ -1,4 +1,11 @@
-import { randomBytes, randomUUID, createHash } from "node:crypto";
+import {
+  randomBytes,
+  randomInt,
+  randomUUID,
+  createHash,
+  createHmac,
+  timingSafeEqual,
+} from "node:crypto";
 import { z } from "zod";
 import { type Database, schema, eq, and, gt, isNull, sql } from "@rotina/db";
 export * from "./finance";
@@ -12,6 +19,105 @@ export const emailSchema = z
   .max(254)
   .transform((v) => v.trim().toLowerCase());
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
+const loginCodeHash = (secret: string, email: string, code: string) =>
+  createHmac("sha256", secret).update(`${email}:${code}`).digest("hex");
+
+export async function issueLoginCode(
+  db: Database,
+  email: string,
+  secret: string,
+) {
+  email = emailSchema.parse(email);
+  const code = String(randomInt(100_000, 1_000_000));
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 15 * 60_000);
+  await db
+    .insert(schema.loginCode)
+    .values({
+      id: randomUUID(),
+      email,
+      codeHash: loginCodeHash(secret, email, code),
+      expiresAt,
+    })
+    .onConflictDoUpdate({
+      target: schema.loginCode.email,
+      set: {
+        id: randomUUID(),
+        codeHash: loginCodeHash(secret, email, code),
+        expiresAt,
+        attempts: 0,
+        usedAt: null,
+        updatedAt: now,
+      },
+    });
+  return code;
+}
+
+export async function consumeLoginCode(
+  db: Database,
+  email: string,
+  code: string,
+  secret: string,
+) {
+  email = emailSchema.parse(email);
+  code = z.string().regex(/^\d{6}$/).parse(code);
+  const [entry] = await db
+    .select()
+    .from(schema.loginCode)
+    .where(eq(schema.loginCode.email, email));
+  const invalid =
+    !entry ||
+    entry.usedAt ||
+    entry.expiresAt <= new Date() ||
+    entry.attempts >= 5;
+  if (invalid)
+    throw new AccessError(
+      "Código inválido ou expirado. Solicite um novo código.",
+    );
+  const expected = loginCodeHash(secret, email, code);
+  if (
+    !timingSafeEqual(Buffer.from(entry.codeHash), Buffer.from(expected))
+  ) {
+    await db
+      .update(schema.loginCode)
+      .set({ attempts: entry.attempts + 1, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.loginCode.id, entry.id),
+          isNull(schema.loginCode.usedAt),
+        ),
+      );
+    throw new AccessError(
+      entry.attempts + 1 >= 5
+        ? "Limite de tentativas atingido. Solicite um novo código."
+        : "Código incorreto. Confira os seis dígitos.",
+    );
+  }
+  const [consumed] = await db
+    .update(schema.loginCode)
+    .set({ usedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(schema.loginCode.id, entry.id),
+        isNull(schema.loginCode.usedAt),
+      ),
+    )
+    .returning();
+  if (!consumed)
+    throw new AccessError(
+      "Código inválido ou expirado. Solicite um novo código.",
+    );
+  const [result] = await db
+    .select({ user: schema.user, suspendedAt: schema.profile.suspendedAt })
+    .from(schema.user)
+    .innerJoin(schema.profile, eq(schema.user.id, schema.profile.userId))
+    .where(eq(schema.user.email, email));
+  if (!result || result.suspendedAt)
+    throw new AccessError(
+      "Código inválido ou expirado. Solicite um novo código.",
+    );
+  return result.user;
+}
 export async function requireOwner(db: Database, userId: string) {
   const [p] = await db
     .select()

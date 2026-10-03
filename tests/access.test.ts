@@ -30,6 +30,15 @@ const headers = new Headers({
   "content-type": "application/json",
 });
 const owner = randomUUID();
+function loginEmailDetails(message: Email) {
+  const url = message.text.match(/https?:\/\/\S+/)?.[0];
+  const code = message.text.match(/\b\d{6}\b/)?.[0];
+  if (!url || !code) throw new Error("Login email is missing URL or code");
+  return {
+    token: new URL(url).searchParams.get("token")!,
+    code,
+  };
+}
 beforeAll(async () => {
   for (const migration of readdirSync("packages/db/migrations")
     .filter((file) => file.endsWith(".sql"))
@@ -209,9 +218,7 @@ describe("Better Auth magic links", () => {
       body: { email: "owner@example.com" },
       headers,
     });
-    const token = new URL(mail.at(-1)!.text.split("\n")[1]!).searchParams.get(
-      "token",
-    )!;
+    const { token } = loginEmailDetails(mail.at(-1)!);
     const stored = await db.select().from(schema.verification);
     expect(stored.some((v) => v.identifier === token)).toBe(false);
     const result = await auth.api.magicLinkVerify({
@@ -233,9 +240,7 @@ describe("Better Auth magic links", () => {
       body: { email: "unknown@example.com" },
       headers,
     });
-    const token = new URL(mail.at(-1)!.text.split("\n")[1]!).searchParams.get(
-      "token",
-    )!;
+    const { token } = loginEmailDetails(mail.at(-1)!);
     await auth.api.magicLinkVerify({
       query: { token },
       headers,
@@ -256,5 +261,47 @@ describe("Better Auth magic links", () => {
     });
     expect(result.ok).toBe(true);
     expect(result.headers.getSetCookie().join("")).toContain("HttpOnly");
+  });
+  it("creates the session in the client that confirms the email code and refuses replay", async () => {
+    await auth.api.signInMagicLink({
+      body: { email: "owner@example.com" },
+      headers,
+    });
+    const { code } = loginEmailDetails(mail.at(-1)!);
+    const result = await auth.api.verifyRotinaLoginCode({
+      body: { email: "owner@example.com", code },
+      headers,
+      asResponse: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.headers.getSetCookie().join("")).toContain("rotina-local");
+    const replay = await auth.api.verifyRotinaLoginCode({
+      body: { email: "owner@example.com", code },
+      headers,
+      asResponse: true,
+    });
+    expect(replay.ok).toBe(false);
+  });
+  it("locks an email code after five incorrect attempts", async () => {
+    await auth.api.signInMagicLink({
+      body: { email: "owner@example.com" },
+      headers,
+    });
+    const { code } = loginEmailDetails(mail.at(-1)!);
+    const wrongCode = code === "000000" ? "111111" : "000000";
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const result = await auth.api.verifyRotinaLoginCode({
+        body: { email: "owner@example.com", code: wrongCode },
+        headers,
+        asResponse: true,
+      });
+      expect(result.ok).toBe(false);
+    }
+    const locked = await auth.api.verifyRotinaLoginCode({
+      body: { email: "owner@example.com", code },
+      headers,
+      asResponse: true,
+    });
+    expect(locked.ok).toBe(false);
   });
 });

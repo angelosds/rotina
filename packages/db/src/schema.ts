@@ -57,6 +57,15 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   ...dates(),
 });
+export const loginCode = pgTable("login_code", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  ...dates(),
+});
 export const profile = pgTable("profile", {
   userId: text("user_id")
     .primaryKey()

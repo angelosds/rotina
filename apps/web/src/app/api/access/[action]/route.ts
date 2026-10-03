@@ -83,8 +83,34 @@ export async function POST(
       // Same response for unknown users and delivery errors: no account enumeration.
       return NextResponse.json({
         message:
-          "Se este e-mail tiver acesso, você receberá um link para entrar. Se não chegar, confira o spam ou tente novamente em um minuto.",
+          "Se este e-mail tiver acesso, você receberá um código. Se não chegar, confira o spam ou tente novamente em um minuto.",
+        step: "code",
       });
+    }
+    if (action === "confirm-code") {
+      const email = emailSchema.parse(
+        typeof body.email === "string" ? body.email.trim() : "",
+      );
+      const code = typeof body.code === "string" ? body.code.trim() : "";
+      if (!/^\d{6}$/.test(code))
+        throw new AccessError("Digite os seis dígitos do código.");
+      const result = await auth.api.verifyRotinaLoginCode({
+        body: { email, code },
+        headers: request.headers,
+        asResponse: true,
+      });
+      if (!result.ok) {
+        const detail = (await result.clone().json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new AccessError(
+          detail?.message ?? "Código inválido ou expirado. Solicite um novo código.",
+        );
+      }
+      const response = NextResponse.json({ redirect: "/hoje" });
+      for (const cookie of result.headers.getSetCookie())
+        response.headers.append("set-cookie", cookie);
+      return response;
     }
     if (action === "confirm") {
       const token = typeof body.token === "string" ? body.token : "";

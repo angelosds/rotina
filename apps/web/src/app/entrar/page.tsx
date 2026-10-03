@@ -1,6 +1,4 @@
-import { LockKeyhole } from "lucide-react";
-import { Card } from "@rotina/ui";
-import { AccessForm } from "@/components/access-form";
+import { LoginFlow } from "@/components/login-flow";
 export const metadata = { title: "Entrar" };
 export default async function Login({
   searchParams,
@@ -8,25 +6,5 @@ export default async function Login({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  return (
-    <Card>
-      <span className="icon">
-        <LockKeyhole aria-hidden size={22} />
-      </span>
-      <h1>Bom ter você de volta</h1>
-      <p className="muted">
-        Receba um link no seu e-mail para entrar, sem precisar de senha.
-      </p>
-      <AccessForm action="login" label="Receber link de acesso" email />
-      {error === "suspended" && (
-        <p className="notice error" role="alert">
-          Seu acesso está suspenso. Fale com o proprietário do app.
-        </p>
-      )}
-      <div className="note">
-        O Rotina está disponível por convite. Use o e-mail em que você recebeu o
-        seu.
-      </div>
-    </Card>
-  );
+  return <LoginFlow accessError={error} />;
 }
