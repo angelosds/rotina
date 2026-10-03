@@ -374,7 +374,7 @@ export function ExpensesDashboard({
 
         {entries.length ? (
           <section
-            className="finance-panel expense-groups"
+            className="expense-groups"
             aria-label="Gastos agrupados por data"
           >
             {[...groups.entries()].map(([date, dayEntries]) => (
