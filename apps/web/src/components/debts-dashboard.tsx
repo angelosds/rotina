@@ -184,6 +184,7 @@ function Dialog({
 
 export function DebtsDashboard({ data, today }: { data: DebtsData; today: string }) {
   const router = useRouter();
+  const moduleNav = useRef<HTMLElement>(null);
   const captureDialog = useRef<HTMLDialogElement>(null);
   const detailDialog = useRef<HTMLDialogElement>(null);
   const debtKey = useRef(crypto.randomUUID());
@@ -208,6 +209,10 @@ export function DebtsDashboard({ data, today }: { data: DebtsData; today: string
     const timer = window.setTimeout(() => setMessage(""), 3800);
     return () => window.clearTimeout(timer);
   }, [message]);
+
+  useEffect(() => {
+    if (moduleNav.current) moduleNav.current.scrollLeft = moduleNav.current.scrollWidth;
+  }, []);
 
   const visibleItems = data.items.filter((item) => {
     if (filter === "all") return true;
@@ -355,7 +360,7 @@ export function DebtsDashboard({ data, today }: { data: DebtsData; today: string
   return (
     <div className="finance-page debts-page">
       <div className="finance-content">
-        <nav className="finance-module-nav" aria-label="Módulos financeiros">
+        <nav ref={moduleNav} className="finance-module-nav" aria-label="Módulos financeiros">
           <Link href="/financas/gastos">Gastos</Link>
           <Link href="/financas/contas">Despesas fixas</Link>
           <Link href="/financas/cartoes">Cartões e faturas</Link>
