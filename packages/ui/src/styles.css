@@ -944,7 +944,7 @@ body:has(.finance-page) .app-route-content {
   gap: 16px;
   min-height: 42px;
   padding: 9px 18px;
-  background: var(--secondary);
+  background: var(--field);
 }
 .expense-day-heading h2 {
   margin: 0;
@@ -964,6 +964,7 @@ body:has(.finance-page) .app-route-content {
   min-height: 58px;
   padding: 9px 18px;
   border-bottom: 1px solid var(--secondary);
+  background: var(--surface);
 }
 .expense-row:last-child {
   border-bottom: 0;
