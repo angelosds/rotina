@@ -761,6 +761,23 @@ body:has(.finance-page) .app-route-content {
   border-radius: 18px;
   background: var(--surface);
 }
+.finance-list-section > .finance-section-heading {
+  margin-bottom: 16px;
+}
+.finance-list-section > .purchase-filters {
+  margin-top: 0;
+}
+.finance-grouped-list {
+  margin-top: 12px;
+}
+.finance-grouped-list .invoice-row,
+.finance-grouped-list .purchase-row {
+  background: var(--surface);
+}
+.expense-day:last-child .invoice-row:last-child,
+.expense-day:last-child .purchase-row:last-child {
+  border-radius: 0 0 18px 18px;
+}
 .finance-section-heading h2,
 .finance-dialog-heading h2 {
   margin: 0 0 4px;
@@ -770,7 +787,8 @@ body:has(.finance-page) .app-route-content {
   grid-template-columns: minmax(250px, 1fr) minmax(150px, 0.45fr) auto;
   align-items: center;
   gap: 20px;
-  padding: 20px 0;
+  min-height: 72px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--secondary);
 }
 .invoice-row:last-of-type {
@@ -872,8 +890,11 @@ body:has(.finance-page) .app-route-content {
   color: var(--text);
 }
 .purchase-row {
-  padding: 18px 0;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--secondary);
+}
+.finance-grouped-list .purchase-row-action {
+  border-radius: 0;
 }
 .purchase-row-action {
   border-radius: 12px;

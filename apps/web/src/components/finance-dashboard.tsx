@@ -65,6 +65,17 @@ function shortDate(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function dayHeading(value: string, today: string) {
+  if (value === today) return "Hoje";
+  const yesterday = new Date(`${today}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  if (value === yesterday.toISOString().slice(0, 10)) return "Ontem";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+  }).format(new Date(`${value}T12:00:00`));
+}
+
 function moveMonth(value: string, amount: number) {
   const date = new Date(`${value}-01T12:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() + amount);
@@ -227,6 +238,18 @@ export function FinanceDashboard({
   const charges = allCharges.filter(
     (charge) => filter === "all" || charge.kind === filter,
   );
+  const invoiceGroups = new Map<string, Invoice[]>();
+  for (const invoice of data.invoices) {
+    const entries = invoiceGroups.get(invoice.dueDate) ?? [];
+    entries.push(invoice);
+    invoiceGroups.set(invoice.dueDate, entries);
+  }
+  const purchaseGroups = new Map<string, typeof charges>();
+  for (const charge of charges) {
+    const entries = purchaseGroups.get(charge.purchaseDate) ?? [];
+    entries.push(charge);
+    purchaseGroups.set(charge.purchaseDate, entries);
+  }
   const selectedInvoice = data.invoices.find(
     (invoice) => invoice.card.id === selectedInvoiceId,
   );
@@ -517,7 +540,7 @@ export function FinanceDashboard({
         </div>
 
         {view === "invoices" ? (
-          <section className="finance-panel">
+          <section className="finance-list-section">
             <div className="finance-section-heading">
               <div>
                 <h2>Faturas do mês</h2>
@@ -539,8 +562,29 @@ export function FinanceDashboard({
                 <p>Nenhuma fatura neste mês.</p>
               </div>
             ) : (
-              data.invoices.map((invoice) => (
-                <article className="invoice-row" key={invoice.card.id}>
+              <section
+                className="expense-groups finance-grouped-list"
+                aria-label="Faturas agrupadas por vencimento"
+              >
+                {[...invoiceGroups.entries()]
+                  .sort(([firstDate], [secondDate]) =>
+                    firstDate.localeCompare(secondDate),
+                  )
+                  .map(([date, invoices]) => (
+                  <section className="expense-day" key={date}>
+                    <div className="expense-day-heading">
+                      <h2>{dayHeading(date, today)}</h2>
+                      <span>
+                        {money.format(
+                          invoices.reduce(
+                            (total, invoice) => total + invoice.totalCents,
+                            0,
+                          ) / 100,
+                        )}
+                      </span>
+                    </div>
+                    {invoices.map((invoice) => (
+                      <article className="invoice-row" key={invoice.card.id}>
                   <div className="invoice-identity">
                     <span className="card-symbol">
                       {invoice.card.name.slice(0, 2).toUpperCase()}
@@ -589,8 +633,11 @@ export function FinanceDashboard({
                       ? "Fechar detalhes"
                       : "Ver fatura"}
                   </Button>
-                </article>
-              ))
+                      </article>
+                    ))}
+                  </section>
+                  ))}
+              </section>
             )}
 
             {selectedInvoice && (
@@ -657,7 +704,7 @@ export function FinanceDashboard({
             )}
           </section>
         ) : (
-          <section className="finance-panel">
+          <section className="finance-list-section">
             <div className="finance-section-heading">
               <div>
                 <h2>Compras nas faturas de {monthName(data.month)}</h2>
@@ -683,7 +730,28 @@ export function FinanceDashboard({
               ))}
             </div>
             {charges.length ? (
-              charges.map((charge) => (
+              <section
+                className="expense-groups finance-grouped-list"
+                aria-label="Compras agrupadas por data"
+              >
+                {[...purchaseGroups.entries()]
+                  .sort(([firstDate], [secondDate]) =>
+                    secondDate.localeCompare(firstDate),
+                  )
+                  .map(([date, dayCharges]) => (
+                  <section className="expense-day" key={date}>
+                    <div className="expense-day-heading">
+                      <h2>{dayHeading(date, today)}</h2>
+                      <span>
+                        {money.format(
+                          dayCharges.reduce(
+                            (total, charge) => total + charge.amountCents,
+                            0,
+                          ) / 100,
+                        )}
+                      </span>
+                    </div>
+                    {dayCharges.map((charge) => (
                 <article
                   className="purchase-row purchase-row-action"
                   key={charge.id}
@@ -760,7 +828,10 @@ export function FinanceDashboard({
                         : `Compra total ${money.format(charge.totalCents / 100)}`}
                   </p>
                 </article>
-              ))
+                    ))}
+                  </section>
+                  ))}
+              </section>
             ) : (
               <div className="finance-empty-list">
                 <Receipt aria-hidden size={28} />
