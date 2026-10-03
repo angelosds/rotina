@@ -280,6 +280,121 @@ export async function getDebts(db: Database, userId: string, today: string) {
   };
 }
 
+export async function getDebtExpensesMonth(
+  db: Database,
+  userId: string,
+  requestedMonth: string,
+  today: string,
+) {
+  const month = z.string().regex(/^\d{4}-\d{2}$/).parse(requestedMonth);
+  validateDate(today);
+  const [debts, payments] = await Promise.all([
+    db.select().from(schema.debt).where(eq(schema.debt.userId, userId)),
+    db
+      .select()
+      .from(schema.debtPayment)
+      .where(eq(schema.debtPayment.userId, userId)),
+  ]);
+  const entries: Array<
+    | {
+        id: string;
+        debtId: string;
+        title: string;
+        amountCents: number;
+        spentAt: string;
+        kind: "installment";
+        status: "Paga" | "Vencida" | "A pagar";
+        paidAt: string | null;
+        installmentNumber: number;
+        installmentCount: number;
+        project: string | null;
+        tags: string[];
+      }
+    | {
+        id: string;
+        debtId: string;
+        title: string;
+        amountCents: number;
+        spentAt: string;
+        kind: "extra";
+        status: "Paga";
+        paidAt: string;
+        installmentNumber: null;
+        installmentCount: number;
+        project: string | null;
+        tags: string[];
+      }
+  > = [];
+
+  for (const debt of debts) {
+    const debtPayments = payments
+      .filter((payment) => payment.debtId === debt.id)
+      .sort(
+        (a, b) =>
+          a.paidAt.localeCompare(b.paidAt) ||
+          a.createdAt.getTime() - b.createdAt.getTime(),
+      );
+    const regularPayments = debtPayments.filter(
+      (payment) => payment.kind === "regular",
+    );
+    const project = debt.project;
+    const tags = tagsFromStorage(debt.tags);
+
+    for (let index = 0; index < debt.installmentCount; index += 1) {
+      const dueDate = addMonths(debt.firstDueDate, index);
+      if (!dueDate.startsWith(month)) continue;
+      const payment = regularPayments[index];
+      const paidBeforeDueCents = debtPayments
+        .filter((item) => item.paidAt < dueDate)
+        .reduce((total, item) => total + item.amountCents, 0);
+      const remainingBeforeDue = Math.max(
+        0,
+        debt.originalBalanceCents - paidBeforeDueCents,
+      );
+      if (!payment && !remainingBeforeDue) continue;
+      entries.push({
+        id: `debt-installment:${debt.id}:${index + 1}`,
+        debtId: debt.id,
+        title: debt.title,
+        amountCents:
+          payment?.amountCents ??
+          Math.min(debt.installmentCents, remainingBeforeDue),
+        spentAt: dueDate,
+        kind: "installment",
+        status: payment ? "Paga" : dueDate < today ? "Vencida" : "A pagar",
+        paidAt: payment?.paidAt ?? null,
+        installmentNumber: index + 1,
+        installmentCount: debt.installmentCount,
+        project,
+        tags,
+      });
+    }
+
+    for (const payment of debtPayments.filter(
+      (item) => item.kind === "extra" && item.paidAt.startsWith(month),
+    ))
+      entries.push({
+        id: `debt-extra:${payment.id}`,
+        debtId: debt.id,
+        title: `Pagamento extra · ${debt.title}`,
+        amountCents: payment.amountCents,
+        spentAt: payment.paidAt,
+        kind: "extra",
+        status: "Paga",
+        paidAt: payment.paidAt,
+        installmentNumber: null,
+        installmentCount: debt.installmentCount,
+        project,
+        tags,
+      });
+  }
+
+  return entries.sort(
+    (a, b) =>
+      b.spentAt.localeCompare(a.spentAt) || a.title.localeCompare(b.title),
+  );
+}
+
 export async function registerDebtPayment(
   db: Database,
   userId: string,

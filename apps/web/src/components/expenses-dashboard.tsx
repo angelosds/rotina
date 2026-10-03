@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  HandCoins,
   Plus,
   Receipt,
   Sparkles,
@@ -192,6 +193,7 @@ function dayHeading(value: string, today: string) {
 function EntryIcon({ entry }: { entry: ExpenseEntry }) {
   if (entry.kind === "invoice") return <CreditCard aria-hidden size={19} />;
   if (entry.kind === "bill") return <Receipt aria-hidden size={19} />;
+  if (entry.kind === "debt") return <HandCoins aria-hidden size={19} />;
   if (entry.sourceKind === "benefit") return <Utensils aria-hidden size={19} />;
   return <Banknote aria-hidden size={19} />;
 }
@@ -210,7 +212,7 @@ export function ExpensesDashboard({
   const [preview, setPreview] = useState<ExpensePreview | null>(null);
   const [amountInput, setAmountInput] = useState("");
   const [filter, setFilter] = useState<
-    "all" | "account" | "card" | "benefit"
+    "all" | "account" | "card" | "debt" | "benefit"
   >("all");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -360,6 +362,7 @@ export function ExpensesDashboard({
             ["all", "Todos"],
             ["account", "Despesas fixas"],
             ["card", "Faturas"],
+            ["debt", "Dívidas"],
             ["benefit", "Benefícios"],
           ].map(([value, label]) => (
             <button
@@ -400,7 +403,9 @@ export function ExpensesDashboard({
                       <div className="expense-identity">
                         <div className="invoice-name">
                           <h3>{entry.title}</h3>
-                          {(entry.kind === "invoice" || entry.kind === "bill") && (
+                          {(entry.kind === "invoice" ||
+                            entry.kind === "bill" ||
+                            entry.kind === "debt") && (
                             <span
                               className={`status-tag ${statusClass(entry.status)}`}
                             >
@@ -413,6 +418,8 @@ export function ExpensesDashboard({
                             ? `Vence ${shortDate(entry.spentAt)} · ${money.format(entry.paidCents / 100)} pagos · ${money.format(entry.remainingCents / 100)} restantes`
                             : entry.kind === "bill"
                               ? `${entry.status === "Paga" ? `Pago ${shortDate(entry.paidAt!)}` : `Vence ${shortDate(entry.spentAt)}`}${entry.project ? ` · @${entry.project}` : ""}`
+                            : entry.kind === "debt"
+                              ? `${entry.debtEntryKind === "extra" ? `Pago ${shortDate(entry.paidAt!)}` : `Parcela ${entry.installmentNumber} de ${entry.installmentCount} · ${entry.status === "Paga" ? `Pago ${shortDate(entry.paidAt!)}` : `Vence ${shortDate(entry.spentAt)}`}`}${entry.project ? ` · @${entry.project}` : ""}`
                             : `${entry.sourceLabel}${entry.project ? ` · @${entry.project}` : ""}${entry.tags.map((tag) => ` · #${tag}`).join("")}`}
                         </p>
                       </div>
@@ -432,6 +439,15 @@ export function ExpensesDashboard({
                     <Link
                       className="expense-row expense-row-link"
                       href={`/financas/contas?mes=${data.month}&conta=${entry.billId}`}
+                      key={entry.id}
+                      aria-label={`Ver ${entry.title}`}
+                    >
+                      {content}
+                    </Link>
+                  ) : entry.kind === "debt" ? (
+                    <Link
+                      className="expense-row expense-row-link"
+                      href="/financas/dividas"
                       key={entry.id}
                       aria-label={`Ver ${entry.title}`}
                     >

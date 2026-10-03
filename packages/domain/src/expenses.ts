@@ -4,6 +4,7 @@ import { type Database, schema, eq } from "@rotina/db";
 import { AccessError } from "./errors";
 import { getFinanceMonth, parseMoney } from "./finance";
 import { getBillsMonth } from "./bills";
+import { getDebtExpensesMonth } from "./debts";
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const monthSchema = z.string().regex(/^\d{4}-\d{2}$/);
@@ -191,13 +192,14 @@ export async function getExpensesMonth(
 ) {
   const month = monthSchema.parse(requestedMonth);
   dateSchema.parse(today);
-  const [manualExpenses, finances, bills] = await Promise.all([
+  const [manualExpenses, finances, bills, debts] = await Promise.all([
     db
       .select()
       .from(schema.expense)
       .where(eq(schema.expense.userId, userId)),
     getFinanceMonth(db, userId, month, today),
     getBillsMonth(db, userId, month, today),
+    getDebtExpensesMonth(db, userId, month, today),
   ]);
   const manualEntries = manualExpenses
     .filter((expense) => expense.spentAt.startsWith(month))
@@ -254,7 +256,30 @@ export async function getExpensesMonth(
     paidAt: occurrence.paidAt,
     estimatedAmountCents: occurrence.estimatedAmountCents,
   }));
-  const entries = [...manualEntries, ...invoiceEntries, ...billEntries].sort(
+  const debtEntries = debts.map((entry) => ({
+    id: entry.id,
+    title: entry.title,
+    amountCents: entry.amountCents,
+    spentAt: entry.spentAt,
+    kind: "debt" as const,
+    sourceKind: "debt" as const,
+    sourceLabel: entry.kind === "extra" ? "Pagamento extra" : "Dívida",
+    project: entry.project,
+    tags: entry.tags,
+    refunded: false,
+    debtId: entry.debtId,
+    debtEntryKind: entry.kind,
+    status: entry.status,
+    paidAt: entry.paidAt,
+    installmentNumber: entry.installmentNumber,
+    installmentCount: entry.installmentCount,
+  }));
+  const entries = [
+    ...manualEntries,
+    ...invoiceEntries,
+    ...billEntries,
+    ...debtEntries,
+  ].sort(
     (a, b) =>
       b.spentAt.localeCompare(a.spentAt) || a.title.localeCompare(b.title),
   );
@@ -262,7 +287,7 @@ export async function getExpensesMonth(
     (total, entry) => total + entry.amountCents,
     0,
   );
-  const otherCents = [...manualEntries, ...billEntries].reduce(
+  const otherCents = [...manualEntries, ...billEntries, ...debtEntries].reduce(
     (total, entry) => total + entry.amountCents,
     0,
   );
