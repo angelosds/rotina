@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type Database, schema, eq } from "@rotina/db";
 import { AccessError } from "./errors";
 import { getFinanceMonth, parseMoney } from "./finance";
+import { getBillsMonth } from "./bills";
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const monthSchema = z.string().regex(/^\d{4}-\d{2}$/);
@@ -190,12 +191,13 @@ export async function getExpensesMonth(
 ) {
   const month = monthSchema.parse(requestedMonth);
   dateSchema.parse(today);
-  const [manualExpenses, finances] = await Promise.all([
+  const [manualExpenses, finances, bills] = await Promise.all([
     db
       .select()
       .from(schema.expense)
       .where(eq(schema.expense.userId, userId)),
     getFinanceMonth(db, userId, month, today),
+    getBillsMonth(db, userId, month, today),
   ]);
   const manualEntries = manualExpenses
     .filter((expense) => expense.spentAt.startsWith(month))
@@ -236,7 +238,23 @@ export async function getExpensesMonth(
       remainingCents: invoice.remainingCents,
       status: invoice.status,
     }));
-  const entries = [...manualEntries, ...invoiceEntries].sort(
+  const billEntries = bills.occurrences.map((occurrence) => ({
+    id: `bill:${occurrence.id}`,
+    title: occurrence.title,
+    amountCents: occurrence.amountCents,
+    spentAt: occurrence.dueDate,
+    kind: "bill" as const,
+    sourceKind: "account" as const,
+    sourceLabel: "Conta",
+    project: occurrence.project,
+    tags: occurrence.tags,
+    refunded: false,
+    billId: occurrence.billId,
+    status: occurrence.status,
+    paidAt: occurrence.paidAt,
+    estimatedAmountCents: occurrence.estimatedAmountCents,
+  }));
+  const entries = [...manualEntries, ...invoiceEntries, ...billEntries].sort(
     (a, b) =>
       b.spentAt.localeCompare(a.spentAt) || a.title.localeCompare(b.title),
   );
@@ -244,7 +262,7 @@ export async function getExpensesMonth(
     (total, entry) => total + entry.amountCents,
     0,
   );
-  const otherCents = manualEntries.reduce(
+  const otherCents = [...manualEntries, ...billEntries].reduce(
     (total, entry) => total + entry.amountCents,
     0,
   );

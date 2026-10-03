@@ -3,14 +3,17 @@ import { eq, schema } from "@rotina/db";
 import {
   AccessError,
   consumeLimit,
+  createBill,
   createCardPurchase,
   createCreditCard,
   createExpense,
   parseMoney,
   previewCardPurchase,
+  previewBill,
   previewExpense,
   refundCardPurchase,
   registerInvoicePayment,
+  registerBillPayment,
 } from "@rotina/domain";
 import { runtime as getRuntime } from "@/lib/runtime";
 import { dateInTimezone } from "@/lib/date";
@@ -178,6 +181,60 @@ export async function POST(
       });
       return NextResponse.json({
         message: "Gasto salvo.",
+        refresh: true,
+      });
+    }
+    if (action === "preview-bill") {
+      const referenceDate =
+        typeof body.referenceDate === "string"
+          ? body.referenceDate
+          : dateInTimezone(profile.timezone);
+      return NextResponse.json({
+        preview: previewBill(String(body.text ?? ""), referenceDate),
+      });
+    }
+    if (action === "bill") {
+      await createBill(db, session.user.id, {
+        title: String(body.title ?? ""),
+        estimatedAmountCents: Number(body.estimatedAmountCents),
+        firstDueDate: String(body.firstDueDate ?? ""),
+        recurrence: String(body.recurrence ?? "") as "once" | "monthly",
+        project:
+          typeof body.project === "string" && body.project
+            ? body.project
+            : null,
+        tags: Array.isArray(body.tags)
+          ? body.tags.filter((tag): tag is string => typeof tag === "string")
+          : [],
+        idempotencyKey: String(body.idempotencyKey ?? ""),
+      });
+      return NextResponse.json({
+        message: "Conta salva.",
+        refresh: true,
+      });
+    }
+    if (action === "bill-payment") {
+      const today = dateInTimezone(profile.timezone);
+      await registerBillPayment(db, session.user.id, {
+        billId: String(body.billId ?? ""),
+        dueDate: String(body.dueDate ?? ""),
+        amountCents: parseMoney(String(body.amount ?? "")),
+        paidAt: String(body.paidAt ?? ""),
+        today,
+        paymentMethod:
+          typeof body.paymentMethod === "string" && body.paymentMethod
+            ? (body.paymentMethod as
+                | "pix"
+                | "cash"
+                | "debit"
+                | "bank_transfer"
+                | "automatic_debit"
+                | "other")
+            : null,
+        idempotencyKey: String(body.idempotencyKey ?? ""),
+      });
+      return NextResponse.json({
+        message: "Pagamento registrado sem duplicar o gasto.",
         refresh: true,
       });
     }

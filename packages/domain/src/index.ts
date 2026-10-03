@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type Database, schema, eq, and, gt, isNull, sql } from "@rotina/db";
 export * from "./finance";
 export * from "./expenses";
+export * from "./bills";
 export { AccessError } from "./errors";
 import { AccessError } from "./errors";
 export const emailSchema = z

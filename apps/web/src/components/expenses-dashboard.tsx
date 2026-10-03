@@ -191,6 +191,7 @@ function dayHeading(value: string, today: string) {
 
 function EntryIcon({ entry }: { entry: ExpenseEntry }) {
   if (entry.kind === "invoice") return <CreditCard aria-hidden size={19} />;
+  if (entry.kind === "bill") return <Receipt aria-hidden size={19} />;
   if (entry.sourceKind === "benefit") return <Utensils aria-hidden size={19} />;
   return <Banknote aria-hidden size={19} />;
 }
@@ -303,6 +304,7 @@ export function ExpensesDashboard({
           <Link href="/financas/gastos" aria-current="page">
             Gastos
           </Link>
+          <Link href="/financas/contas">Contas</Link>
           <Link href="/financas/cartoes">Cartões e faturas</Link>
         </nav>
 
@@ -394,7 +396,7 @@ export function ExpensesDashboard({
                       <div className="expense-identity">
                         <div className="invoice-name">
                           <h3>{entry.title}</h3>
-                          {entry.kind === "invoice" && (
+                          {(entry.kind === "invoice" || entry.kind === "bill") && (
                             <span
                               className={`status-tag ${statusClass(entry.status)}`}
                             >
@@ -405,6 +407,8 @@ export function ExpensesDashboard({
                         <p className="muted">
                           {entry.kind === "invoice"
                             ? `Vence ${shortDate(entry.spentAt)} · ${money.format(entry.paidCents / 100)} pagos · ${money.format(entry.remainingCents / 100)} restantes`
+                            : entry.kind === "bill"
+                              ? `${entry.status === "Paga" ? `Pago ${shortDate(entry.paidAt!)}` : `Vence ${shortDate(entry.spentAt)}`}${entry.project ? ` · @${entry.project}` : ""}`
                             : `${entry.sourceLabel}${entry.project ? ` · @${entry.project}` : ""}${entry.tags.map((tag) => ` · #${tag}`).join("")}`}
                         </p>
                       </div>
@@ -415,6 +419,15 @@ export function ExpensesDashboard({
                     <Link
                       className="expense-row expense-row-link"
                       href={`/financas/cartoes?mes=${entry.invoiceMonth}&cartao=${entry.cardId}`}
+                      key={entry.id}
+                      aria-label={`Ver ${entry.title}`}
+                    >
+                      {content}
+                    </Link>
+                  ) : entry.kind === "bill" ? (
+                    <Link
+                      className="expense-row expense-row-link"
+                      href={`/financas/contas?mes=${data.month}&conta=${entry.billId}`}
                       key={entry.id}
                       aria-label={`Ver ${entry.title}`}
                     >

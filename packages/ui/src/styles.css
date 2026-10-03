@@ -594,8 +594,14 @@ body:has(.finance-page) .app-route-content {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.finance-module-nav::-webkit-scrollbar {
+  display: none;
 }
 .finance-module-nav a {
+  flex: 0 0 auto;
   min-height: 40px;
   padding: 8px 14px;
   border-radius: 999px;
@@ -1037,6 +1043,99 @@ body:has(.finance-page) .app-route-content {
   color: var(--muted);
   font-size: 0.8125rem;
 }
+.bills-featured {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bill-filters {
+  margin: 22px 0 12px;
+}
+.bill-list {
+  padding-block: 4px;
+}
+.bill-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 78px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--secondary);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.bill-row:last-child {
+  border-bottom: 0;
+}
+.bill-row > strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bill-row-action {
+  cursor: pointer;
+}
+.bill-row-action:hover {
+  background: var(--secondary);
+}
+.bill-row-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.bill-payment-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.bill-payment-form > label {
+  display: grid;
+  gap: 8px;
+}
+.bill-payment-form > label > input,
+.bill-payment-form > label > select {
+  margin-top: 0;
+}
+.bill-payment-form small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.bill-payment-summary {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.bill-payment-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 0.875rem;
+}
+.bill-payment-summary span {
+  color: var(--muted);
+}
+.bill-impact-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.bill-impact-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.bill-payment-help {
+  margin: -4px 0 0;
+  font-size: 0.8125rem;
+}
 .finance-dialog {
   width: min(480px, calc(100% - 32px));
   max-height: min(760px, calc(100% - 32px));
@@ -1310,7 +1409,7 @@ body:has(.finance-page) .app-route-content {
   }
   .finance-module-nav {
     margin-bottom: 20px;
-    overflow: hidden;
+    overflow-x: auto;
   }
   .finance-module-nav a {
     display: inline-flex;
@@ -1373,6 +1472,9 @@ body:has(.finance-page) .app-route-content {
   .purchase-filters.expense-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .purchase-filters.bill-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .purchase-filters button {
     justify-content: center;
     padding-inline: 8px;
@@ -1391,6 +1493,13 @@ body:has(.finance-page) .app-route-content {
     gap: 10px;
   }
   .expense-row > strong {
+    font-size: 0.875rem;
+  }
+  .bill-row {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .bill-row > strong {
     font-size: 0.875rem;
   }
   .app-bottom-nav {
