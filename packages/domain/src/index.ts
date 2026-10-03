@@ -12,6 +12,7 @@ export * from "./finance";
 export * from "./expenses";
 export * from "./bills";
 export * from "./debts";
+export * from "./tasks";
 export { AccessError } from "./errors";
 import { AccessError } from "./errors";
 export const emailSchema = z

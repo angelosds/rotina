@@ -25,9 +25,13 @@ function PrimaryNavigation({ pathname }: { pathname: string }) {
       >
         <Sun aria-hidden size={20} /> Hoje
       </Link>
-      <span aria-disabled="true">
+      <Link
+        href="/tarefas"
+        className={isCurrent(pathname, "/tarefas") ? "current" : undefined}
+        aria-current={isCurrent(pathname, "/tarefas") ? "page" : undefined}
+      >
         <CheckSquare aria-hidden size={20} /> Tarefas
-      </span>
+      </Link>
       <span aria-disabled="true">
         <CalendarDays aria-hidden size={20} /> Agenda
       </span>

@@ -242,3 +242,28 @@ export const debtPayment = pgTable("debt_payment", {
   idempotencyKey: text("idempotency_key").notNull().unique(),
   ...dates(),
 });
+export const project = pgTable("project", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  ...dates(),
+});
+export const task = pgTable("task", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  projectId: text("project_id").references(() => project.id, {
+    onDelete: "set null",
+  }),
+  title: text("title").notNull(),
+  dueDate: date("due_date", { mode: "string" }),
+  dueTime: text("due_time"),
+  tags: text("tags").notNull().default("[]"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  ...dates(),
+});
