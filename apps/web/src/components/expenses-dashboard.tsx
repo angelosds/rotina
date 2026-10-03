@@ -373,9 +373,12 @@ export function ExpensesDashboard({
         </div>
 
         {entries.length ? (
-          <div className="expense-groups">
+          <section
+            className="finance-panel expense-groups"
+            aria-label="Gastos agrupados por data"
+          >
             {[...groups.entries()].map(([date, dayEntries]) => (
-              <section className="finance-panel expense-day" key={date}>
+              <section className="expense-day" key={date}>
                 <div className="expense-day-heading">
                   <h2>{dayHeading(date, today)}</h2>
                   <span>
@@ -441,7 +444,7 @@ export function ExpensesDashboard({
                 })}
               </section>
             ))}
-          </div>
+          </section>
         ) : (
           <section className="finance-panel finance-empty-list expense-empty">
             <Receipt aria-hidden size={28} />

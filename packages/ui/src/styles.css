@@ -928,35 +928,42 @@ body:has(.finance-page) .app-route-content {
   margin: 22px 0 12px;
 }
 .expense-groups {
-  display: grid;
-  gap: 12px;
+  display: block;
+  overflow: hidden;
+  padding: 0;
 }
 .expense-day {
-  padding-block: 18px;
+  padding: 0;
+}
+.expense-day + .expense-day {
+  border-top: 8px solid var(--canvas);
 }
 .expense-day-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 2px 8px;
+  min-height: 42px;
+  padding: 9px 18px;
+  background: var(--secondary);
 }
 .expense-day-heading h2 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 .expense-day-heading span {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 .expense-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  min-height: 68px;
-  padding: 12px 0;
+  gap: 10px;
+  min-height: 58px;
+  padding: 9px 18px;
   border-bottom: 1px solid var(--secondary);
 }
 .expense-row:last-child {
@@ -977,9 +984,9 @@ body:has(.finance-page) .app-route-content {
 .expense-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   background: var(--tag-bg);
   color: var(--tag-text);
 }
@@ -996,13 +1003,13 @@ body:has(.finance-page) .app-route-content {
 }
 .expense-identity h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 .expense-identity p {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   overflow-wrap: anywhere;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 .expense-row > strong {
   font-variant-numeric: tabular-nums;
@@ -1486,11 +1493,15 @@ body:has(.finance-page) .app-route-content {
     white-space: nowrap;
   }
   .expense-day {
-    padding: 18px;
+    padding: 0;
+  }
+  .expense-day-heading {
+    padding-inline: 12px;
   }
   .expense-row {
-    grid-template-columns: 42px minmax(0, 1fr) auto;
-    gap: 10px;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding-inline: 12px;
   }
   .expense-row > strong {
     font-size: 0.875rem;
