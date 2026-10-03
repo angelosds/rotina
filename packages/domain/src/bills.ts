@@ -85,7 +85,7 @@ export function previewBill(text: string, referenceDate: string) {
     /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})|\d+(?:[.,]\d{1,2})?)/,
   );
   if (!amountMatch)
-    throw new AccessError("Informe o valor estimado da conta no texto.");
+    throw new AccessError("Informe o valor estimado da despesa no texto.");
   const tags = Array.from(
     text.matchAll(/#([\p{L}\d_-]+)/gu),
     (match) => match[1]!,
@@ -100,7 +100,7 @@ export function previewBill(text: string, referenceDate: string) {
     .replace(/\s+/g, " ")
     .replace(/^[-–—·,;:]+|[-–—·,;:]+$/g, "")
     .trim();
-  if (!title) throw new AccessError("Informe um nome para a conta.");
+  if (!title) throw new AccessError("Informe um nome para a despesa fixa.");
   return {
     title,
     estimatedAmountCents: parseMoney(amountMatch[1]!),
@@ -138,14 +138,14 @@ export async function createBill(
   validateDate(parsed.firstDueDate);
   const dueDay = Number(parsed.firstDueDate.slice(8, 10));
   if (parsed.recurrence === "monthly" && dueDay > 28)
-    throw new AccessError("Contas mensais devem vencer entre os dias 01 e 28.");
+    throw new AccessError("Despesas mensais devem vencer entre os dias 01 e 28.");
   const [idempotent] = await db
     .select()
     .from(schema.bill)
     .where(eq(schema.bill.idempotencyKey, parsed.idempotencyKey));
   if (idempotent) {
     if (idempotent.userId !== userId)
-      throw new AccessError("Não foi possível confirmar a conta.");
+      throw new AccessError("Não foi possível confirmar a despesa fixa.");
     return idempotent;
   }
   const [created] = await db
@@ -170,7 +170,7 @@ export async function createBill(
     .from(schema.bill)
     .where(eq(schema.bill.idempotencyKey, parsed.idempotencyKey));
   if (!existing || existing.userId !== userId)
-    throw new AccessError("Não foi possível confirmar a conta.");
+    throw new AccessError("Não foi possível confirmar a despesa fixa.");
   return existing;
 }
 
@@ -287,13 +287,13 @@ export async function registerBillPayment(
     .select()
     .from(schema.bill)
     .where(and(eq(schema.bill.id, parsed.billId), eq(schema.bill.userId, userId)));
-  if (!bill) throw new AccessError("Conta não encontrada.");
+  if (!bill) throw new AccessError("Despesa fixa não encontrada.");
   const month = parsed.dueDate.slice(0, 7);
   if (
     !billOccursInMonth(bill, month) ||
     dueDateForMonth(bill, month) !== parsed.dueDate
   )
-    throw new AccessError("Esse vencimento não pertence à conta.");
+    throw new AccessError("Esse vencimento não pertence à despesa fixa.");
   const [alreadyPaid] = await db
     .select()
     .from(schema.billPayment)
@@ -303,7 +303,7 @@ export async function registerBillPayment(
         eq(schema.billPayment.dueDate, parsed.dueDate),
       ),
     );
-  if (alreadyPaid) throw new AccessError("Esta conta já foi paga.");
+  if (alreadyPaid) throw new AccessError("Esta despesa fixa já foi paga.");
   const [created] = await db
     .insert(schema.billPayment)
     .values({

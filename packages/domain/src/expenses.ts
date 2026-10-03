@@ -245,7 +245,7 @@ export async function getExpensesMonth(
     spentAt: occurrence.dueDate,
     kind: "bill" as const,
     sourceKind: "account" as const,
-    sourceLabel: "Conta",
+    sourceLabel: "Despesa fixa",
     project: occurrence.project,
     tags: occurrence.tags,
     refunded: false,

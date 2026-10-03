@@ -4,7 +4,7 @@ import { runtime } from "@/lib/runtime";
 import { dateInTimezone } from "@/lib/date";
 import { BillsDashboard } from "@/components/bills-dashboard";
 
-export const metadata = { title: "Contas a pagar" };
+export const metadata = { title: "Despesas fixas" };
 
 export default async function Bills({
   searchParams,

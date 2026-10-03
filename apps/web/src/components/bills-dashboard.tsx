@@ -276,7 +276,7 @@ export function BillsDashboard({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Não foi possível interpretar a conta.",
+          : "Não foi possível interpretar a despesa fixa.",
       );
     } finally {
       setPending(false);
@@ -309,7 +309,7 @@ export function BillsDashboard({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Não foi possível salvar a conta.",
+          : "Não foi possível salvar a despesa fixa.",
       );
     } finally {
       setPending(false);
@@ -360,18 +360,18 @@ export function BillsDashboard({
       <div className="finance-content">
         <nav className="finance-module-nav" aria-label="Módulos financeiros">
           <Link href="/financas/gastos">Gastos</Link>
-          <Link href="/financas/contas" aria-current="page">Contas</Link>
+          <Link href="/financas/contas" aria-current="page">Despesas fixas</Link>
           <Link href="/financas/cartoes">Cartões e faturas</Link>
         </nav>
 
         <header className="finance-header">
           <div>
             <span className="finance-eyebrow">Finanças</span>
-            <h1>Contas a pagar</h1>
+            <h1>Despesas fixas</h1>
             <p className="muted">Acompanhe vencimentos sem duplicar seus gastos.</p>
           </div>
           <Button type="button" onClick={startBill}>
-            <Plus aria-hidden size={18} /> Nova conta
+            <Plus aria-hidden size={18} /> Nova despesa fixa
           </Button>
         </header>
 
@@ -401,7 +401,7 @@ export function BillsDashboard({
 
         <section className="finance-featured bills-featured">
           <div>
-            <p>Contas do mês</p>
+            <p>Despesas fixas do mês</p>
             <strong>{money.format(data.summary.totalCents / 100)}</strong>
             <span>
               {money.format(data.summary.paidCents / 100)} pagos ·{" "}
@@ -410,7 +410,7 @@ export function BillsDashboard({
           </div>
         </section>
 
-        <div className="purchase-filters bill-filters" aria-label="Filtrar contas">
+        <div className="purchase-filters bill-filters" aria-label="Filtrar despesas fixas">
           {[
             ["all", "Todas"],
             ["pending", "A pagar"],
@@ -428,7 +428,7 @@ export function BillsDashboard({
         </div>
 
         {occurrences.length ? (
-          <section className="finance-panel bill-list" aria-label="Contas do mês">
+          <section className="finance-panel bill-list" aria-label="Despesas fixas do mês">
             {occurrences.map((occurrence) => {
               const content = (
                 <>
@@ -475,9 +475,9 @@ export function BillsDashboard({
         ) : (
           <section className="finance-panel finance-empty-list expense-empty">
             <CircleDollarSign aria-hidden size={28} />
-            <h2>Nenhuma conta neste mês</h2>
-            <p>Cadastre uma conta pontual ou recorrente para planejar o período.</p>
-            <Button type="button" onClick={startBill}>Adicionar conta</Button>
+            <h2>Nenhuma despesa fixa neste mês</h2>
+            <p>Cadastre uma despesa pontual ou recorrente para planejar o período.</p>
+            <Button type="button" onClick={startBill}>Adicionar despesa fixa</Button>
           </section>
         )}
       </div>
@@ -498,14 +498,14 @@ export function BillsDashboard({
 
       <Dialog
         dialogRef={captureDialog}
-        eyebrow={preview ? "Revisar conta" : "Nova conta"}
+        eyebrow={preview ? "Revisar despesa fixa" : "Nova despesa fixa"}
         title={preview ? "Confira antes de salvar" : "Registre do seu jeito"}
       >
         {preview ? (
           <div className="purchase-review expense-review">
             <div className="expense-recognized">
               <Sparkles aria-hidden size={18} />
-              Entendi como <strong>{preview.recurrence === "monthly" ? "conta recorrente" : "conta pontual"}</strong>
+              Entendi como <strong>{preview.recurrence === "monthly" ? "despesa recorrente" : "despesa pontual"}</strong>
             </div>
             <div className="finance-form-grid">
               <label>
@@ -566,11 +566,11 @@ export function BillsDashboard({
               </label>
             </div>
             <p className="expense-info-note">
-              Em contas recorrentes, o valor serve como estimativa. Você poderá informar o valor real ao pagar cada mês.
+              Em despesas recorrentes, o valor serve como estimativa. Você poderá informar o valor real ao pagar cada mês.
             </p>
             {error && <Notice error>{error}</Notice>}
             <Button type="button" className="full" disabled={pending} onClick={saveBill}>
-              {pending ? "Salvando…" : "Salvar conta"}
+              {pending ? "Salvando…" : "Salvar despesa fixa"}
             </Button>
             <Button type="button" className="secondary full" onClick={() => { setPreview(null); setError(""); }}>
               Voltar ao texto
@@ -578,7 +578,7 @@ export function BillsDashboard({
           </div>
         ) : (
           <div className="expense-capture">
-            <label htmlFor="bill-capture">Qual conta você precisa pagar?</label>
+            <label htmlFor="bill-capture">Qual despesa fixa você precisa pagar?</label>
             <textarea
               id="bill-capture"
               rows={4}
@@ -591,7 +591,7 @@ export function BillsDashboard({
             </p>
             {error && <Notice error>{error}</Notice>}
             <Button type="button" className="full" disabled={pending || !capture.trim()} onClick={reviewBill}>
-              {pending ? "Interpretando…" : "Revisar conta"}
+              {pending ? "Interpretando…" : "Revisar despesa fixa"}
             </Button>
           </div>
         )}
@@ -599,7 +599,7 @@ export function BillsDashboard({
 
       <Dialog
         dialogRef={paymentDialog}
-        eyebrow={selected?.title ?? "Conta"}
+        eyebrow={selected?.title ?? "Despesa fixa"}
         title="Confirmar pagamento"
       >
         {selected && (
@@ -619,7 +619,7 @@ export function BillsDashboard({
                   onChange={(event) => setPaymentAmount(formatCurrencyInput(event.target.value))}
                 />
               </span>
-              <small>Ajuste para o valor real da conta deste mês.</small>
+              <small>Ajuste para o valor real da despesa deste mês.</small>
             </label>
             <label>
               Data do pagamento

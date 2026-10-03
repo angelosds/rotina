@@ -415,7 +415,7 @@ export function FinanceDashboard({
       <div className="finance-content">
         <nav className="finance-module-nav" aria-label="Módulos financeiros">
           <Link href="/financas/gastos">Gastos</Link>
-          <Link href="/financas/contas">Contas</Link>
+          <Link href="/financas/contas">Despesas fixas</Link>
           <Link href="/financas/cartoes" aria-current="page">
             Cartões e faturas
           </Link>

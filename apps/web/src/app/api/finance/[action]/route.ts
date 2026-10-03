@@ -209,7 +209,7 @@ export async function POST(
         idempotencyKey: String(body.idempotencyKey ?? ""),
       });
       return NextResponse.json({
-        message: "Conta salva.",
+        message: "Despesa fixa salva.",
         refresh: true,
       });
     }

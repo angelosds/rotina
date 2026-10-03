@@ -184,7 +184,7 @@ describe("Bills", () => {
         recurrence: "once",
         idempotencyKey: key,
       }),
-    ).rejects.toThrow("Não foi possível confirmar a conta");
+    ).rejects.toThrow("Não foi possível confirmar a despesa fixa");
     const otherMonth = await getBillsMonth(
       db,
       otherUserId,

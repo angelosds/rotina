@@ -304,7 +304,7 @@ export function ExpensesDashboard({
           <Link href="/financas/gastos" aria-current="page">
             Gastos
           </Link>
-          <Link href="/financas/contas">Contas</Link>
+          <Link href="/financas/contas">Despesas fixas</Link>
           <Link href="/financas/cartoes">Cartões e faturas</Link>
         </nav>
 
@@ -357,7 +357,7 @@ export function ExpensesDashboard({
         <div className="purchase-filters expense-filters" aria-label="Filtrar gastos">
           {[
             ["all", "Todos"],
-            ["account", "Contas"],
+            ["account", "Despesas fixas"],
             ["card", "Faturas"],
             ["benefit", "Benefícios"],
           ].map(([value, label]) => (
