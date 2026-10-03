@@ -937,6 +937,12 @@ body:has(.finance-page) .app-route-content {
 .expense-day + .expense-day {
   border-top: 8px solid var(--canvas);
 }
+.expense-day:first-child .expense-day-heading {
+  border-radius: 18px 18px 0 0;
+}
+.expense-day:last-child .expense-row:last-child {
+  border-radius: 0 0 18px 18px;
+}
 .expense-day-heading {
   display: flex;
   align-items: center;
